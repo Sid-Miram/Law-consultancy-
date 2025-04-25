@@ -5,10 +5,10 @@ const router = express.Router();
 const Client = require("../models/Client.js");
 require("dotenv").config();
 //import controllers
-const authController = require("../controllers/authControllers.js");
+const authControllers = require("../controllers/authControllers.js");
 
-router.get("/", authController.checkHealth);
-router.get("/auth/google", authController.googleLoginRedirect);
-router.get("/auth/google/callback", authController.googleLogin);
+router.get("/", authControllers.checkHealth);
+router.get("/auth/google", authControllers.googleLoginRedirect);
+router.get("/auth/google/callback", authControllers.googleLogin);
 
 module.exports = router;
