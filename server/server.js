@@ -11,11 +11,15 @@ const { Server } = require('socket.io');
 const socketService = require('./services/socketService');
 require("dotenv").config();
 const chatRoutes = require("./routes/chatRoutes.js");
+const verifyJWT  = require('./middlewares/verifyJwt.js');
+const User = require('./models/User');
+const Message = require('./models/Message');
+const Conversation = require('./models/Conversation');
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:4500', 'http://localhost:3000'], // Add your frontend URLs
-  credentials: true, // Allow credentials (cookies)
+  origin: ['http://localhost:4500', 'http://localhost:5173'],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -31,9 +35,10 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: ['http://localhost:5173', 'http://localhost:4500'],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   }
 });
 
@@ -50,49 +55,66 @@ async function dbConnection() {
     await mongoose.connect(dbURI);
     console.log("DB connected");
   } catch (error) {
-    console.log(error);
+    console.log("DB connection error:", error);
   }
 }
 
-// server setup
-server.listen(PORT, () => {
-  dbConnection();
-  console.log(`Server running on http://localhost:${PORT}`);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
 //routes
 app.use("/", authRoutes);
-app.use("/chat", chatRoutes);
+app.use("/chat", verifyJWT, chatRoutes);
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // Join a room based on user role and ID
-  socket.on("join-room", ({ userId, role }) => {
-    const room = `${role}-${userId}`;
-    socket.join(room);
-    console.log(`User ${userId} joined room ${room}`);
+  // Join conversation room
+  socket.on("join", async ({ conversationId }) => {
+    socket.join(conversationId);
+    console.log(`User joined conversation: ${conversationId}`);
   });
 
-  // Handle private messages
-  socket.on("private-message", ({ to, message, from }) => {
-    const room = `${to.role}-${to.id}`;
-    io.to(room).emit("private-message", {
-      from,
-      message,
-      timestamp: new Date()
-    });
+  // Handle messages
+  socket.on("message", async (message) => {
+    try {
+      // Save message to database
+      const savedMessage = await Message.create({
+        conversation: message.conversationId,
+        sender: message.sender,
+        content: message.content
+      });
+
+      // Update conversation's last message
+      await Conversation.findByIdAndUpdate(
+        message.conversationId,
+        { lastMessage: message.content, updatedAt: Date.now() }
+      );
+
+      // Emit message to conversation room
+      io.to(message.conversationId).emit("message", savedMessage);
+    } catch (error) {
+      console.error("Error handling message:", error);
+    }
   });
 
   // Handle typing status
-  socket.on("typing", ({ to, isTyping }) => {
-    const room = `${to.role}-${to.id}`;
-    io.to(room).emit("typing", { isTyping });
+  socket.on("typing", ({ conversationId, isTyping }) => {
+    socket.to(conversationId).emit("typing", { isTyping });
   });
 
   // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
+});
+
+// server setup
+server.listen(PORT, () => {
+  dbConnection();
+  console.log(`Server running on http://localhost:${PORT}`);
 });

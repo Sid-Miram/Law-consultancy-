@@ -7,7 +7,7 @@ import LegalBookPage from './pages/LegalBookPage.jsx';
 import ScheduleMeetPage from './pages/ScheduleMeetPage.jsx';
 import ConsultationPage from './pages/ConsultationPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
-import RegisterPage from './pages/RegisterPage.jsx';
+// import RegisterPage from './pages/RegisterPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import ProfilePage from './pages/ProfilePage.jsx';
 import PageTransitionHandler from './components/PageTransitionHandler.jsx';
@@ -52,7 +52,7 @@ function App() {
       <Routes>
         
         <Route path="/login" element={<LoginPage />} />
-        <Route path="/register" element={<RegisterPage />} />
+        {/* <Route path="/register" element={<RegisterPage />} /> */}
         <Route path="/" element={<Layout />}>
           <Route index element={<HomePage />} />
           <Route path="/contact" element={<ContactPage />} />

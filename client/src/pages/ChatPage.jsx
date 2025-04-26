@@ -29,14 +29,8 @@ const ChatPage = () => {
         const endpoint = user.role === 'client' ? '/lawyers' : '/clients';
         const usersResponse = await axios.get(`http://localhost:3000${endpoint}`, { withCredentials: true });
         
-        // Filter out current user and enforce chat rules
-        const filteredUsers = usersResponse.data.filter(u => {
-          // Only show lawyers to clients and clients to lawyers
-          return u._id !== user._id && 
-                 ((user.role === 'client' && u.role === 'lawyer') || 
-                  (user.role === 'lawyer' && u.role === 'client'));
-        });
-        
+        // Filter out current user
+        const filteredUsers = usersResponse.data.filter(u => u._id !== user._id);
         setUsers(filteredUsers);
         
         // Fetch conversations
@@ -46,7 +40,11 @@ const ChatPage = () => {
         setLoading(false);
       } catch (err) {
         console.error('Error fetching data:', err);
-        setError('Failed to load chat data');
+        if (err.code === 'ERR_NETWORK') {
+          setError('Server is not running. Please start the server and try again.');
+        } else {
+          setError('Failed to load chat data. Please try again later.');
+        }
         setLoading(false);
       }
     };
@@ -55,24 +53,48 @@ const ChatPage = () => {
   }, []);
 
   const handleUserSelect = async (user) => {
-    setSelectedUser(user);
     try {
+      setSelectedUser(user);
+      setLoading(true);
+      setError(null);
+
       // Find or create conversation
-      const conversationResponse = await axios.post('http://localhost:3000/chat/conversations', {
-        participantId: user._id
-      }, { withCredentials: true });
+      const conversationResponse = await axios.post(
+        'http://localhost:3000/chat/conversations',
+        { participantId: user._id },
+        { withCredentials: true }
+      );
+
+      if (!conversationResponse.data) {
+        throw new Error('Failed to create conversation');
+      }
 
       setCurrentConversation(conversationResponse.data);
 
       // Fetch messages for the conversation
-      const messagesResponse = await axios.get(`http://localhost:3000/chat/messages/${conversationResponse.data._id}`, { withCredentials: true });
+      const messagesResponse = await axios.get(
+        `http://localhost:3000/chat/messages/${conversationResponse.data._id}`,
+        { withCredentials: true }
+      );
+
       setMessages(messagesResponse.data);
 
       // Mark messages as read
-      await axios.put(`http://localhost:3000/chat/messages/read/${conversationResponse.data._id}`, {}, { withCredentials: true });
+      await axios.put(
+        `http://localhost:3000/chat/messages/read/${conversationResponse.data._id}`,
+        {},
+        { withCredentials: true }
+      );
+
+      setLoading(false);
     } catch (err) {
       console.error('Error selecting user:', err);
-      setError('Failed to load conversation');
+      if (err.code === 'ERR_NETWORK') {
+        setError('Server is not running. Please start the server and try again.');
+      } else {
+        setError('Failed to load conversation. Please try again later.');
+      }
+      setLoading(false);
     }
   };
 

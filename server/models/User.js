@@ -1,59 +1,15 @@
-const mongoose = require('mongoose');
+"use strict";
 
-const userSchema = new mongoose.Schema({
-  name: {
-    type: String,
-    required: true,
-    trim: true
-  },
-  email: {
-    type: String,
-    required: true,
-    unique: true,
-    trim: true,
-    lowercase: true
-  },
-  password: {
-    type: String,
-    required: true
-  },
-  role: {
-    type: String,
-    enum: ['client', 'lawyer'],
-    required: true
-  },
-  picture: {
-    type: String,
-    default: 'https://via.placeholder.com/150'
-  },
-  specialization: {
-    type: String,
-    required: function() {
-      return this.role === 'lawyer';
-    }
-  },
-  phone: {
-    type: String,
-    trim: true
-  },
-  address: {
-    type: String,
-    trim: true
-  },
-  bio: {
-    type: String,
-    trim: true
-  },
-  online: {
-    type: Boolean,
-    default: false
-  },
-  lastSeen: {
-    type: Date,
-    default: Date.now
-  }
-}, {
-  timestamps: true
+const mongoose = require("mongoose");
+
+const clientSchema = new mongoose.Schema({
+  name: { type: String, required: true },
+  picture: {type: String, required: true},
+  email: { type: String, required: true, unique : true, lowercase: true, trim: true },
+  role : {type: String, enum: ['client'], default: 'client' , immutable: true},
+  googleCalendarToken: {type: String, trim:true},
 });
 
-module.exports = mongoose.model('User', userSchema); 
+const User = mongoose.model("Client", clientSchema);
+
+module.exports = User;

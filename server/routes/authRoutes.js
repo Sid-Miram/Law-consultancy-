@@ -2,12 +2,12 @@
 
 const express = require("express");
 const router = express.Router();
-const Client = require("../models/Client.js");
+const Client = require("../models/User.js");
 require("dotenv").config();
 //import controllers
 const authControllers = require("../controllers/authControllers.js");
 const verifyJWT = require("../middlewares/verifyJwt.js"); 
-const User = require("../models/Client.js");
+const User = require("../models/User.js");
 
 
 router.get("/", authControllers.checkHealth);

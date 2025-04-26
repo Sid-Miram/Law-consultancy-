@@ -50,24 +50,12 @@ const Chat = ({ conversationId, currentUser, otherUser, initialMessages }) => {
     if (!newMessage.trim()) return;
 
     try {
-      // Validate chat rules before sending
-      const validationResponse = await axios.post('http://localhost:3000/chat/validate', {
-        participantId: otherUser._id
-      }, { withCredentials: true });
-
-      if (!validationResponse.data.valid) {
-        console.error('Invalid chat: Cannot send message');
-        return;
-      }
-
       const message = {
         content: newMessage,
         conversationId,
         sender: currentUser._id,
         receiver: otherUser._id
       };
-
-      console.log('Sending message:', message);
 
       // Send message through socket
       socketRef.current.emit('message', message);
@@ -77,8 +65,6 @@ const Chat = ({ conversationId, currentUser, otherUser, initialMessages }) => {
         withCredentials: true
       });
 
-      console.log('Message sent successfully:', response.data);
-
       // Add the message to local state
       setMessages((prevMessages) => [...prevMessages, response.data]);
 
@@ -87,9 +73,6 @@ const Chat = ({ conversationId, currentUser, otherUser, initialMessages }) => {
       socketRef.current.emit('typing', { conversationId, isTyping: false });
     } catch (error) {
       console.error('Error sending message:', error);
-      if (error.response?.data?.error) {
-        console.error('Validation error:', error.response.data.error);
-      }
     }
   };
 

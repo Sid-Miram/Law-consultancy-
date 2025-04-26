@@ -2,7 +2,7 @@
 require("dotenv").config();
 const axios = require("axios");
 const qs = require("qs");
-
+const jwt = require('jsonwebtoken')
 
 
 function getGoogleOAuthUrl(role = "client") {
@@ -51,4 +51,11 @@ async function getGoogleOAuthToken(code) {
   }
 }
 
-module.exports = { getGoogleOAuthUrl, getGoogleOAuthToken };
+async function getGoogleUser(id_token, token){
+  const user = jwt.decode(id_token,process.env.JWT_SECRET)
+  console.log("user getGoogleUser",user);
+  return user
+  
+}
+
+module.exports = { getGoogleOAuthUrl, getGoogleOAuthToken,getGoogleUser };
