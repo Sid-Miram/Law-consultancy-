@@ -3,9 +3,13 @@
 const express = require("express");
 const mongoose = require("mongoose");
 const app = express();
+const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes.js");
 require("dotenv").config();
 
+
+app.use(express.json())
+app.use(cookieParser())
 //.env imports
 const dbURI = process.env.dbURI;
 const PORT = 3000;

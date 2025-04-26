@@ -4,8 +4,11 @@ const axios = require("axios");
 const qs = require("qs");
 
 
-function getGoogleOAuthUrl() {
+
+function getGoogleOAuthUrl(role = "client") {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
+
+  const state = JSON.stringify({ role });
 
   const options = {
     redirect_uri: process.env.GOOGLE_REDIRECT_URI,
@@ -13,13 +16,14 @@ function getGoogleOAuthUrl() {
     access_type: "offline",
     response_type: "code",
     prompt: "consent",
-    scope: ["openid", "profile", "email"].join(" "),
+    scope: ["openid", "profile", "email", "https://www.googleapis.com/auth/calendar.events"].join(" "),
+    state: encodeURIComponent(state),
   };
 
   const qs = new URLSearchParams(options);
-
   return `${rootUrl}?${qs.toString()}`;
 }
+
 
 async function getGoogleOAuthToken(code) {
   // creating rootUrl to access token
@@ -40,7 +44,7 @@ async function getGoogleOAuthToken(code) {
       },
     });
 
-    return res
+    return res.data;
   } catch (err) {
     console.log(err);
     throw new Error(err.message);
