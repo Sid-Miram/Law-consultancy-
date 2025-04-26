@@ -14,8 +14,8 @@ const chatRoutes = require("./routes/chatRoutes.js");
 
 // CORS configuration
 app.use(cors({
-  origin: ['http://localhost:4500', 'http://localhost:3000'], // Add your frontend URLs
-  credentials: true, // Allow credentials (cookies)
+  origin: ['http://localhost:4500', 'http://localhost:5173'],
+  credentials: true,
   methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
   allowedHeaders: ['Content-Type', 'Authorization']
 }));
@@ -31,9 +31,10 @@ const server = http.createServer(app);
 // Initialize Socket.IO
 const io = new Server(server, {
   cors: {
-    origin: "http://localhost:5173",
-    methods: ["GET", "POST"],
-    credentials: true
+    origin: ['http://localhost:5173', 'http://localhost:4500'],
+    methods: ["GET", "POST", "PUT", "DELETE"],
+    credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization']
   }
 });
 
@@ -50,14 +51,14 @@ async function dbConnection() {
     await mongoose.connect(dbURI);
     console.log("DB connected");
   } catch (error) {
-    console.log(error);
+    console.log("DB connection error:", error);
   }
 }
 
-// server setup
-server.listen(PORT, () => {
-  dbConnection();
-  console.log(`Server running on http://localhost:${PORT}`);
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error(err.stack);
+  res.status(500).json({ error: 'Something went wrong!' });
 });
 
 //routes
@@ -68,31 +69,49 @@ app.use("/chat", chatRoutes);
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
-  // Join a room based on user role and ID
-  socket.on("join-room", ({ userId, role }) => {
-    const room = `${role}-${userId}`;
-    socket.join(room);
-    console.log(`User ${userId} joined room ${room}`);
+  // Join conversation room
+  socket.on("join", ({ conversationId }) => {
+    if (conversationId) {
+      socket.join(conversationId);
+      console.log(`User joined conversation: ${conversationId}`);
+    }
   });
 
-  // Handle private messages
-  socket.on("private-message", ({ to, message, from }) => {
-    const room = `${to.role}-${to.id}`;
-    io.to(room).emit("private-message", {
-      from,
-      message,
-      timestamp: new Date()
-    });
+  // Handle messages
+  socket.on("message", (message) => {
+    try {
+      console.log("Received message:", message);
+      if (message && message.conversationId) {
+        io.to(message.conversationId).emit("message", message);
+      } else {
+        console.error("Invalid message format:", message);
+      }
+    } catch (error) {
+      console.error("Error handling message:", error);
+    }
   });
 
   // Handle typing status
-  socket.on("typing", ({ to, isTyping }) => {
-    const room = `${to.role}-${to.id}`;
-    io.to(room).emit("typing", { isTyping });
+  socket.on("typing", (data) => {
+    try {
+      if (data && data.conversationId) {
+        io.to(data.conversationId).emit("typing", { isTyping: data.isTyping });
+      } else {
+        console.error("Invalid typing data:", data);
+      }
+    } catch (error) {
+      console.error("Error handling typing status:", error);
+    }
   });
 
   // Handle disconnect
   socket.on("disconnect", () => {
     console.log("User disconnected:", socket.id);
   });
+});
+
+// server setup
+server.listen(PORT, () => {
+  dbConnection();
+  console.log(`Server running on http://localhost:${PORT}`);
 });

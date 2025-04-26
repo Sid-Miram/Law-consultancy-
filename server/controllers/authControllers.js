@@ -1,11 +1,12 @@
 "use strict";
 
 const jwt = require("jsonwebtoken");
-const Client = require("../models/Client.js");
+// const Client = require("../models/Client.js");
 const Lawyer = require("../models/Lawyer.js");
 const User = require("../models/Client.js");
 
-const { getGoogleOAuthUrl, getGoogleOAuthToken } = require("../services/googleOAuthServices.js");
+
+const { getGoogleOAuthUrl, getGoogleOAuthToken ,getGoogleUser} = require("../services/googleOAuthServices.js");
 const { google } = require("googleapis");
 
 const authControllers = {
@@ -23,14 +24,16 @@ const authControllers = {
     }
   },
 
+ 
   googleLogin: async (req, res) => {
     try {
       const code = req.query.code;
       const { id_token, access_token } = await getGoogleOAuthToken(code);
-      const googleUser = await getGoogleUser({ id_token, access_token });
-
+      const googleUser = jwt.decode(id_token)
+      console.log("google email",googleUser);
+      
       let user = await User.findOne({ email: googleUser.email });
-
+      
       if (!user) {
         // Create new user based on role
         const role = req.query.role || 'client';
@@ -44,7 +47,7 @@ const authControllers = {
         });
         await user.save();
       }
-
+      
       // Generate JWT token
       const token = jwt.sign(
         { userId: user._id, role: user.role },
@@ -61,10 +64,10 @@ const authControllers = {
       });
 
       // Redirect to frontend
-      res.redirect('http://localhost:5173');
+      res.redirect('http://localhost:4500/');
     } catch (error) {
       console.error("Error in googleLogin:", error);
-      res.redirect('http://localhost:5173/login?error=authentication_failed');
+      res.redirect('http://localhost:4500/login?error=authentication_failed');
     }
   },
 
@@ -80,7 +83,27 @@ const authControllers = {
   },
 
   findUser: async (req, res) => {
-    res.status(200).json(req.user);
+    try {
+      // Get user ID from the JWT token (req.user.userId)
+      const userId = req.user.userId;
+      
+      // Find user by ID and exclude sensitive fields
+      const user = await User.findById(userId)
+        .select('-password -__v')
+        .lean();
+
+      if (!user) {
+        return res.status(404).json({ error: 'User not found' });
+      }
+
+      // Add online status
+      user.online = true;
+      
+      res.status(200).json(user);
+    } catch (error) {
+      console.error('Error in findUser:', error);
+      res.status(500).json({ error: 'Error fetching user data' });
+    }
   },
 
   getAllUsers: async (req, res) => {

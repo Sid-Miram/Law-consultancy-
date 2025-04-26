@@ -13,7 +13,9 @@ const verifyJWT = (req, res, next) => {
     if (err) {
       return res.status(403).json({ error: "Invalid or expired token" });
     }
-    req.user = decoded;  // Attach decoded user info to the request object
+    req.user = decoded; 
+    console.log("decoded",decoded);
+     // Attach decoded user info to the request object
     next();
   });
 };

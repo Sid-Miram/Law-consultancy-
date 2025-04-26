@@ -1,6 +1,6 @@
 const Conversation = require("../models/Conversation");
 const Message = require("../models/Message");
-const User = require("../models/User");
+const User = require("../models/Client.js");
 
 const chatController = {
   // Get all conversations for the current user
