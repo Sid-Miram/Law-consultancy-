@@ -1,65 +1,115 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Send, Paperclip, MoreVertical, Search } from 'lucide-react';
 import Card from '../components/Card';
 import Button from '../components/Button';
+import axios from 'axios';
+import { useNavigate } from 'react-router-dom';
+import Chat from '../components/Chat';
 
 const ChatPage = () => {
   const [message, setMessage] = useState('');
-  const [conversations] = useState([
-    {
-      id: 1,
-      name: 'Jennifer Robinson',
-      role: 'Family Law Attorney',
-      avatar: 'https://images.pexels.com/photos/5669619/pexels-photo-5669619.jpeg?auto=compress&cs=tinysrgb&w=300',
-      lastMessage: 'I have reviewed your documents and have some suggestions.',
-      time: '10:30 AM',
-      unread: 2,
-      online: true
-    },
-    {
-      id: 2,
-      name: 'Michael Chen',
-      role: 'Business Law Attorney',
-      avatar: 'https://images.pexels.com/photos/5490276/pexels-photo-5490276.jpeg?auto=compress&cs=tinysrgb&w=300',
-      lastMessage: 'The contract looks good. Lets schedule a call to discuss.',
-      time: 'Yesterday',
-      unread: 0,
-      online: false
-    }
-  ]);
+  const [conversations, setConversations] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [users, setUsers] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [currentConversation, setCurrentConversation] = useState(null);
+  const navigate = useNavigate();
 
-  const [messages] = useState([
-    {
-      id: 1,
-      sender: 'Jennifer Robinson',
-      content: 'Hello! I have reviewed the custody agreement documents you sent.',
-      time: '10:30 AM',
-      isMe: false
-    },
-    {
-      id: 2,
-      sender: 'Me',
-      content: 'Thank you for looking into this. What are your thoughts?',
-      time: '10:32 AM',
-      isMe: true
-    },
-    {
-      id: 3,
-      sender: 'Jennifer Robinson',
-      content: 'I think we have a strong case. There are a few points we should discuss in detail.',
-      time: '10:33 AM',
-      isMe: false
-    }
-  ]);
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/find-user', { withCredentials: true });
+        const user = response.data;
+        setCurrentUser(user);
+        
+        // Fetch appropriate users based on role
+        const endpoint = user.role === 'client' ? '/lawyers' : '/clients';
+        const usersResponse = await axios.get(`http://localhost:3000${endpoint}`, { withCredentials: true });
+        
+        // Filter out current user and enforce chat rules
+        const filteredUsers = usersResponse.data.filter(u => {
+          // Only show lawyers to clients and clients to lawyers
+          return u._id !== user._id && 
+                 ((user.role === 'client' && u.role === 'lawyer') || 
+                  (user.role === 'lawyer' && u.role === 'client'));
+        });
+        
+        setUsers(filteredUsers);
+        
+        // Fetch conversations
+        const conversationsResponse = await axios.get('http://localhost:3000/chat/conversations', { withCredentials: true });
+        setConversations(conversationsResponse.data);
+        
+        setLoading(false);
+      } catch (err) {
+        console.error('Error fetching data:', err);
+        setError('Failed to load chat data');
+        setLoading(false);
+      }
+    };
 
-  const handleSendMessage = (e) => {
-    e.preventDefault();
-    if (message.trim()) {
-      // TODO: Implement message sending
-      console.log('Sending message:', message);
-      setMessage('');
+    fetchUserData();
+  }, []);
+
+  const handleUserSelect = async (user) => {
+    setSelectedUser(user);
+    try {
+      // Find or create conversation
+      const conversationResponse = await axios.post('http://localhost:3000/chat/conversations', {
+        participantId: user._id
+      }, { withCredentials: true });
+
+      setCurrentConversation(conversationResponse.data);
+
+      // Fetch messages for the conversation
+      const messagesResponse = await axios.get(`http://localhost:3000/chat/messages/${conversationResponse.data._id}`, { withCredentials: true });
+      setMessages(messagesResponse.data);
+
+      // Mark messages as read
+      await axios.put(`http://localhost:3000/chat/messages/read/${conversationResponse.data._id}`, {}, { withCredentials: true });
+    } catch (err) {
+      console.error('Error selecting user:', err);
+      setError('Failed to load conversation');
     }
   };
+
+  const handleSendMessage = async (e) => {
+    e.preventDefault();
+    if (!message.trim() || !selectedUser) return;
+
+    try {
+      // TODO: Implement socket.io message sending
+      console.log('Sending message:', message);
+      setMessage('');
+    } catch (err) {
+      console.error('Error sending message:', err);
+      setError('Failed to send message');
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary-500"></div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="h-screen flex items-center justify-center">
+        <Card className="p-6 text-center">
+          <p className="text-red-500">{error}</p>
+          <Button onClick={() => navigate('/')} className="mt-4">
+            Return Home
+          </Button>
+        </Card>
+      </div>
+    );
+  }
 
   return (
     <div className="h-screen bg-gray-50 mt-20">
@@ -72,44 +122,40 @@ const ChatPage = () => {
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-5 w-5" />
                 <input
                   type="text"
-                  placeholder="Search conversations..."
+                  placeholder="Search users..."
                   className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
                 />
               </div>
             </div>
             
             <div className="flex-1 overflow-y-auto">
-              {conversations.map((conversation) => (
+              {users.map((user) => (
                 <div
-                  key={conversation.id}
-                  className="p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer"
+                  key={user._id}
+                  onClick={() => handleUserSelect(user)}
+                  className={`p-4 border-b border-gray-100 hover:bg-gray-50 cursor-pointer ${
+                    selectedUser?._id === user._id ? 'bg-primary-50' : ''
+                  }`}
                 >
                   <div className="flex items-center space-x-4">
                     <div className="relative">
                       <img
-                        src={conversation.avatar}
-                        alt={conversation.name}
+                        src={user.picture || 'https://via.placeholder.com/40'}
+                        alt={user.name}
                         className="w-12 h-12 rounded-full object-cover"
                       />
-                      {conversation.online && (
+                      {user.online && (
                         <div className="absolute bottom-0 right-0 w-3 h-3 bg-green-500 rounded-full border-2 border-white"></div>
                       )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center justify-between">
                         <h4 className="text-sm font-semibold text-gray-900 truncate">
-                          {conversation.name}
+                          {user.name}
                         </h4>
-                        <span className="text-xs text-gray-500">{conversation.time}</span>
                       </div>
-                      <p className="text-xs text-gray-500">{conversation.role}</p>
-                      <p className="text-sm text-gray-600 truncate">{conversation.lastMessage}</p>
+                      <p className="text-xs text-gray-500">{user.role === 'lawyer' ? user.specialization : 'Client'}</p>
                     </div>
-                    {conversation.unread > 0 && (
-                      <div className="w-5 h-5 bg-primary-500 rounded-full flex items-center justify-center">
-                        <span className="text-xs text-white">{conversation.unread}</span>
-                      </div>
-                    )}
                   </div>
                 </div>
               ))}
@@ -118,73 +164,21 @@ const ChatPage = () => {
 
           {/* Chat Area */}
           <div className="flex-1 flex flex-col">
-            {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 flex items-center justify-between">
-              <div className="flex items-center space-x-4">
-                <img
-                  src={conversations[0].avatar}
-                  alt={conversations[0].name}
-                  className="w-10 h-10 rounded-full object-cover"
-                />
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-900">{conversations[0].name}</h3>
-                  <p className="text-sm text-gray-500">{conversations[0].role}</p>
+            {selectedUser && currentConversation ? (
+              <Chat
+                conversationId={currentConversation._id}
+                currentUser={currentUser}
+                otherUser={selectedUser}
+                initialMessages={messages}
+              />
+            ) : (
+              <div className="flex-1 flex items-center justify-center">
+                <div className="text-center">
+                  <h3 className="text-lg font-semibold text-gray-900">Select a user to start chatting</h3>
+                  <p className="text-gray-500 mt-2">Choose from the list on the left to begin a conversation</p>
                 </div>
               </div>
-              <button className="p-2 hover:bg-gray-100 rounded-full">
-                <MoreVertical className="h-5 w-5 text-gray-500" />
-              </button>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.isMe ? 'justify-end' : 'justify-start'}`}
-                >
-                  <div
-                    className={`max-w-[70%] rounded-lg p-3 ${
-                      message.isMe
-                        ? 'bg-primary-500 text-white'
-                        : 'bg-gray-100 text-gray-900'
-                    }`}
-                  >
-                    <p className="text-sm">{message.content}</p>
-                    <span className={`text-xs mt-1 block ${message.isMe ? 'text-primary-100' : 'text-gray-500'}`}>
-                      {message.time}
-                    </span>
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Message Input */}
-            <div className="p-4 border-t border-gray-200">
-              <form onSubmit={handleSendMessage} className="flex items-center space-x-4">
-                <button
-                  type="button"
-                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
-                >
-                  <Paperclip className="h-5 w-5 text-gray-500" />
-                </button>
-                <input
-                  type="text"
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="Type your message..."
-                  className="flex-1 p-2 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <Button
-                  type="submit"
-                  variant="primary"
-                  className="!px-4"
-                  disabled={!message.trim()}
-                >
-                  <Send className="h-5 w-5" />
-                </Button>
-              </form>
-            </div>
+            )}
           </div>
         </div>
       </div>

@@ -4,7 +4,7 @@ require("dotenv").config();
 
 const verifyJWT = (req, res, next) => {
   const token = req.cookies.token || req.headers.authorization?.split(" ")[1];  // Token from cookie or header
-  console.log(token);
+  // console.log(token);
   if (!token) {
     return res.status(401).json({ error: "Authentication required" });
   }

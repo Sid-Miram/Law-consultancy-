@@ -1,18 +1,44 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Scale, Menu, X, ChevronRight } from 'lucide-react';
+import { Scale, Menu, X, ChevronRight, User } from 'lucide-react';
 import { gsap } from 'gsap';
 import Button from './Button';
+import axios from 'axios';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
+  const [user, setUser] = useState(null);
+  const [isLoading, setIsLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
   const navRef = useRef(null);
   const mobileMenuRef = useRef(null);
   const logoIconRef = useRef(null);
   const navItemsRef = useRef([]);
+
+  // Fetch user info
+  useEffect(() => {
+    const fetchUserInfo = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/find-user', {
+          withCredentials: true,
+          headers: {
+            'Content-Type': 'application/json',
+          }
+        });
+        setUser(response.data);
+        console.log("User data:", response.data);
+      } catch (error) {
+        console.error('Error fetching user info:', error);
+        setUser(null);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchUserInfo();
+  }, []);
 
   // Handle scroll effects
   useEffect(() => {
@@ -148,6 +174,26 @@ const Navbar = () => {
     setIsOpen(!isOpen);
   };
 
+  const handleLogout = async () => {
+    try {
+      await axios.post('http://localhost:3000/auth/logout', {}, {
+        withCredentials: true
+      });
+      setUser(null);
+      navigate('/login');
+    } catch (error) {
+      console.error('Error logging out:', error);
+    }
+  };
+
+  const handleProfileClick = () => {
+    if (user?.role === 'lawyer') {
+      navigate('/lawyer/profile');
+    } else {
+      navigate('/profile');
+    }
+  };
+
   return (
     <nav 
       ref={navRef}
@@ -226,38 +272,74 @@ const Navbar = () => {
             })}
 
             <div className="pl-6 flex items-center space-x-3">
-              <Link 
-                to="/login" 
-                onClick={(e) => handleNavigation(e, '/login')}
-                className="relative overflow-hidden group"
-              >
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  className={`relative z-10 border-2 transition-all duration-300 ${
-                    isScrolled ? 'border-primary-600 text-primary-600' : 'border-white text-white'
-                  }`}
-                >
-                  <span className="relative z-10 group-hover:text-white transition-colors duration-300">Sign In</span>
-                  <span className="absolute inset-0 bg-primary-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
-                </Button>
-              </Link>
-              <Link 
-                to="/register" 
-                onClick={(e) => handleNavigation(e, '/register')}
-                className="relative overflow-hidden group"
-              >
-                <Button 
-                  variant="primary" 
-                  size="sm"
-                  className="relative z-10 shadow-lg bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-purple-600 transition-all duration-300"
-                >
-                  <span className="flex items-center">
-                    Get Started
-                    <ChevronRight className="h-4 w-4 ml-1 transform group-hover:translate-x-1 transition-transform duration-300" />
-                  </span>
-                </Button>
-              </Link>
+              {!isLoading && (user ? (
+                <div className="flex items-center space-x-3">
+                  <div 
+                    className="relative group cursor-pointer"
+                    onClick={handleProfileClick}
+                  >
+                    {user.picture ? (
+                      <img 
+                        src={user.picture} 
+                        alt={user.name} 
+                        className="w-10 h-10 rounded-full object-cover border-2 border-white/20 hover:border-primary-500 transition-all duration-300"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center border-2 border-white/20 hover:border-primary-500 transition-all duration-300">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+                      View Profile
+                    </div>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={handleLogout}
+                    className={`relative z-10 border-2 transition-all duration-300 ${
+                      isScrolled ? 'border-primary-600 text-primary-600' : 'border-white text-white'
+                    }`}
+                  >
+                    Logout
+                  </Button>
+                </div>
+              ) : (
+                <>
+                  <Link 
+                    to="/login" 
+                    onClick={(e) => handleNavigation(e, '/login')}
+                    className="relative overflow-hidden group"
+                  >
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className={`relative z-10 border-2 transition-all duration-300 ${
+                        isScrolled ? 'border-primary-600 text-primary-600' : 'border-white text-white'
+                      }`}
+                    >
+                      <span className="relative z-10 group-hover:text-white transition-colors duration-300">Sign In</span>
+                      <span className="absolute inset-0 bg-primary-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+                    </Button>
+                  </Link>
+                  <Link 
+                    to="/register" 
+                    onClick={(e) => handleNavigation(e, '/register')}
+                    className="relative overflow-hidden group"
+                  >
+                    <Button 
+                      variant="primary" 
+                      size="sm"
+                      className="relative z-10 shadow-lg bg-gradient-to-r from-primary-600 to-primary-500 hover:from-primary-500 hover:to-purple-600 transition-all duration-300"
+                    >
+                      <span className="flex items-center">
+                        Get Started
+                        <ChevronRight className="h-4 w-4 ml-1 transform group-hover:translate-x-1 transition-transform duration-300" />
+                      </span>
+                    </Button>
+                  </Link>
+                </>
+              ))}
             </div>
           </div>
           
@@ -313,35 +395,69 @@ const Navbar = () => {
               );
             })}
             <div className="px-5 py-3 space-y-3">
-              <Link 
-                to="/login" 
-                onClick={(e) => handleNavigation(e, '/login')}
-                className="mobile-menu-item block"
-              >
-                <Button 
-                  variant="outline" 
-                  fullWidth
-                  className="border-2 border-primary-600 text-primary-600"
-                >
-                  Sign In
-                </Button>
-              </Link>
-              <Link 
-                to="/register" 
-                onClick={(e) => handleNavigation(e, '/register')}
-                className="mobile-menu-item block"
-              >
-                <Button 
-                  variant="primary" 
-                  fullWidth
-                  className="bg-gradient-to-r from-primary-600 to-primary-500"
-                >
-                  <span className="flex items-center justify-center">
-                    Get Started
-                    <ChevronRight className="h-4 w-4 ml-1" />
-                  </span>
-                </Button>
-              </Link>
+              {!isLoading && (user ? (
+                <>
+                  <div 
+                    className="flex items-center space-x-2 mb-3 cursor-pointer"
+                    onClick={handleProfileClick}
+                  >
+                    {user.picture ? (
+                      <img 
+                        src={user.picture} 
+                        alt={user.name} 
+                        className="w-10 h-10 rounded-full object-cover border-2 border-primary-500"
+                      />
+                    ) : (
+                      <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center border-2 border-primary-500">
+                        <User className="w-6 h-6 text-white" />
+                      </div>
+                    )}
+                    <span className="text-sm font-medium text-gray-700">
+                      View Profile
+                    </span>
+                  </div>
+                  <Button 
+                    variant="outline" 
+                    fullWidth
+                    onClick={handleLogout}
+                    className="border-2 border-primary-600 text-primary-600"
+                  >
+                    Logout
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Link 
+                    to="/login" 
+                    onClick={(e) => handleNavigation(e, '/login')}
+                    className="mobile-menu-item block"
+                  >
+                    <Button 
+                      variant="outline" 
+                      fullWidth
+                      className="border-2 border-primary-600 text-primary-600"
+                    >
+                      Sign In
+                    </Button>
+                  </Link>
+                  <Link 
+                    to="/register" 
+                    onClick={(e) => handleNavigation(e, '/register')}
+                    className="mobile-menu-item block"
+                  >
+                    <Button 
+                      variant="primary" 
+                      fullWidth
+                      className="bg-gradient-to-r from-primary-600 to-primary-500"
+                    >
+                      <span className="flex items-center justify-center">
+                        Get Started
+                        <ChevronRight className="h-4 w-4 ml-1" />
+                      </span>
+                    </Button>
+                  </Link>
+                </>
+              ))}
             </div>
           </div>
         </div>
