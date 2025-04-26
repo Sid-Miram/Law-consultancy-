@@ -1,13 +1,45 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { LogIn } from 'lucide-react';
 import Button from '../components/Button';
+import axios from 'axios';
 
 const LoginPage = () => {
-  const handleGoogleLogin = () => {
-    // TODO: Implement Google login
-    console.log('Google login clicked');
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check for error in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error === 'login_failed') {
+      // Handle login error (show error message to user)
+      console.error('Login failed');
+    }
+
+    // Check if we have a token in cookies
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/auth/check', {
+          withCredentials: true
+        });
+        if (response.data.authenticated) {
+          // Redirect to the page they were trying to access or home
+          const from = location.state?.from?.pathname || '/';
+          navigate(from, { replace: true });
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    };
+
+    checkAuth();
+  }, [navigate, location]);
+
+  const handleGoogleLogin = (role = 'client') => {
+    // Redirect to backend Google OAuth endpoint with specified role
+    window.location.href = `http://localhost:3000/auth/google?role=${role}`;
   };
 
   return (
@@ -25,20 +57,37 @@ const LoginPage = () => {
           </div>
 
           <div className="space-y-6">
-            <Button
-              variant="outline"
-              size="lg"
-              fullWidth
-              onClick={handleGoogleLogin}
-              className="flex items-center justify-center space-x-2"
-            >
-              <img 
-                src="https://www.google.com/favicon.ico" 
-                alt="Google" 
-                className="w-5 h-5"
-              />
-              <span>Continue with Google</span>
-            </Button>
+            <div className="space-y-4">
+              <Button
+                variant="outline"
+                size="lg"
+                fullWidth
+                onClick={() => handleGoogleLogin('client')}
+                className="flex items-center justify-center space-x-2"
+              >
+                <img 
+                  src="https://www.google.com/favicon.ico" 
+                  alt="Google" 
+                  className="w-5 h-5"
+                />
+                <span>Continue as Client</span>
+              </Button>
+
+              <Button
+                variant="outline"
+                size="lg"
+                fullWidth
+                onClick={() => handleGoogleLogin('lawyer')}
+                className="flex items-center justify-center space-x-2"
+              >
+                <img 
+                  src="https://www.google.com/favicon.ico" 
+                  alt="Google" 
+                  className="w-5 h-5"
+                />
+                <span>Continue as Lawyer</span>
+              </Button>
+            </div>
 
             <div className="relative">
               <div className="absolute inset-0 flex items-center">

@@ -1,13 +1,45 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserPlus } from 'lucide-react';
 import Button from '../components/Button';
+import axios from 'axios';
 
 const RegisterPage = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  useEffect(() => {
+    // Check for error in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const error = urlParams.get('error');
+    if (error === 'login_failed') {
+      // Handle registration error (show error message to user)
+      console.error('Registration failed');
+    }
+
+    // Check if we have a token in cookies
+    const checkAuth = async () => {
+      try {
+        const response = await axios.get('http://localhost:3000/auth/check', {
+          withCredentials: true
+        });
+        if (response.data.authenticated) {
+          // Redirect to the page they were trying to access or home
+          const from = location.state?.from?.pathname || '/';
+          navigate(from, { replace: true });
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+      }
+    };
+
+    checkAuth();
+  }, [navigate, location]);
+
   const handleGoogleRegister = () => {
-    // TODO: Implement Google registration
-    console.log('Google registration clicked');
+    // Redirect to backend Google OAuth endpoint with role=client
+    window.location.href = 'http://localhost:3000/auth/google?role=client';
   };
 
   return (

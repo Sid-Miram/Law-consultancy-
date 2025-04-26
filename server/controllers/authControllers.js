@@ -3,152 +3,150 @@
 const jwt = require("jsonwebtoken");
 const Client = require("../models/Client.js");
 const Lawyer = require("../models/Lawyer.js");
+const User = require("../models/Client.js");
 
 const { getGoogleOAuthUrl, getGoogleOAuthToken } = require("../services/googleOAuthServices.js");
 const { google } = require("googleapis");
 
-module.exports.checkHealth = (req, res) => {
-  res.status(200).send("Mango Yummy");
-};
+const authControllers = {
+  checkHealth: (req, res) => {
+    res.status(200).json({ message: "Server is running" });
+  },
 
-module.exports.googleLoginRedirect = (req, res) => {
-  const role = req.query.role || "client"; // default to client
-  const consentUrl = getGoogleOAuthUrl(role);
-  res.redirect(consentUrl);
-};
-
-module.exports.googleLogin = async (req, res) => {
-  try {
-    const { code: authorizationCode, state } = req.query;
-
-    if (!authorizationCode || !state) {
-      return res.status(400).json({ error: "Missing authorization code or state" });
-    }
-
-    // Extract role from state
-    let role;
+  googleLoginRedirect: async (req, res) => {
     try {
-      const parsedState = JSON.parse(decodeURIComponent(state));
-      role = parsedState.role;
-    } catch (e) {
-      return res.status(400).json({ error: "Invalid state parameter" });
+      const url = getGoogleOAuthUrl();
+      res.redirect(url);
+    } catch (error) {
+      console.error("Error in googleLoginRedirect:", error);
+      res.status(500).json({ error: "Error redirecting to Google" });
     }
+  },
 
-    const { id_token, access_token } = await getGoogleOAuthToken(authorizationCode);
-    const { name, email, picture } = jwt.decode(id_token);
+  googleLogin: async (req, res) => {
+    try {
+      const code = req.query.code;
+      const { id_token, access_token } = await getGoogleOAuthToken(code);
+      const googleUser = await getGoogleUser({ id_token, access_token });
 
-    if (!email) {
-      return res.status(400).json({ error: "Invalid ID token. Email not found." });
-    }
+      let user = await User.findOne({ email: googleUser.email });
 
-    let user;
-    if (role === "lawyer") {
-      user = await Lawyer.findOneAndUpdate(
-        { email },
-        { name, picture, role, googleCalendarToken: access_token },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
+      if (!user) {
+        // Create new user based on role
+        const role = req.query.role || 'client';
+        const UserModel = role === 'lawyer' ? Lawyer : Client;
+        
+        user = new UserModel({
+          name: googleUser.name,
+          email: googleUser.email,
+          picture: googleUser.picture,
+          role: role
+        });
+        await user.save();
+      }
+
+      // Generate JWT token
+      const token = jwt.sign(
+        { userId: user._id, role: user.role },
+        process.env.JWT_SECRET,
+        { expiresIn: '1d' }
       );
-    } else {
-      role = "client";
-      user = await Client.findOneAndUpdate(
-        { email },
-        { name, picture, role, googleCalendarToken: access_token },
-        { new: true, upsert: true, setDefaultsOnInsert: true }
-      );
+
+      // Set cookie
+      res.cookie('token', token, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === 'production',
+        sameSite: 'strict',
+        maxAge: 24 * 60 * 60 * 1000 // 1 day
+      });
+
+      // Redirect to frontend
+      res.redirect('http://localhost:5173');
+    } catch (error) {
+      console.error("Error in googleLogin:", error);
+      res.redirect('http://localhost:5173/login?error=authentication_failed');
     }
+  },
 
-    // Create JWT for session
-    const appToken = jwt.sign(
-      { _id: user._id, name, email, picture, role },
-      process.env.JWT_SECRET ,
-      { expiresIn: "60m" }
-    );
+  createCalendarEvent: async (req, res) => {
+    try {
+      const { summary, description, startTime, endTime, timeZone } = req.body;
+      const event = await createCalendarEvent(summary, description, startTime, endTime, timeZone);
+      res.json(event);
+    } catch (error) {
+      console.error("Error creating calendar event:", error);
+      res.status(500).json({ error: "Error creating calendar event" });
+    }
+  },
 
-    res.cookie("token", appToken, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === "production",
-      maxAge: 2 * 24 * 60 * 60 * 1000,
-      sameSite: "lax",
-    });
+  findUser: async (req, res) => {
+    res.status(200).json(req.user);
+  },
 
-    const redirectUrl =
-      role === "lawyer"
-        ? process.env.LAWYER_REDIRECT_URL || "http://localhost:3000/lawyer"
-        : process.env.CLIENT_REDIRECT_URL || "http://localhost:3000";
+  getAllUsers: async (req, res) => {
+    try {
+      // Exclude the current user from the results
+      const users = await User.find(
+        { _id: { $ne: req.user._id } },
+        { name: 1, email: 1, role: 1, avatar: 1, online: 1 }
+      ).sort({ name: 1 });
 
-    res.redirect(redirectUrl);
-  } catch (err) {
-    console.error("Google login error:", err);
-    const fallbackRedirect =
-      req.query.role === "lawyer"
-        ? process.env.LAWYER_REDIRECT_URL || "http://localhost:3000/lawyer"
-        : process.env.CLIENT_REDIRECT_URL || "http://localhost:3000";
+      res.json(users);
+    } catch (error) {
+      console.error('Error fetching users:', error);
+      res.status(500).json({ error: 'Error fetching users' });
+    }
+  },
 
-    res.redirect(`${fallbackRedirect}?error=login_failed`);
+  getAllClients: async (req, res) => {
+    try {
+      const clients = await Client.find(
+        {},
+        { 
+          name: 1, 
+          email: 1, 
+          picture: 1, 
+          phone: 1, 
+          address: 1,
+          bio: 1,
+          online: 1,
+          createdAt: 1
+        }
+      ).sort({ name: 1 });
+
+      res.json(clients);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      res.status(500).json({ error: 'Error fetching clients' });
+    }
+  },
+
+  getAllLawyers: async (req, res) => {
+    try {
+      const lawyers = await Lawyer.find(
+        {},
+        { 
+          name: 1, 
+          email: 1, 
+          picture: 1, 
+          phone: 1, 
+          address: 1,
+          bio: 1,
+          specialization: 1,
+          experience: 1,
+          online: 1,
+          createdAt: 1
+        }
+      ).sort({ name: 1 });
+
+      res.json(lawyers);
+    } catch (error) {
+      console.error('Error fetching lawyers:', error);
+      res.status(500).json({ error: 'Error fetching lawyers' });
+    }
   }
 };
 
+module.exports = authControllers;
 
-
-
-module.exports.createCalendarEvent = async (req, res) => {
-  const { title, description, startTime, endTime, attendees } = req.body;
-
-  const authToken = req.cookies.token;
-
-  if (!authToken) {
-    return res.status(403).json({ error: "Authentication required" });
-  }
-
-  try {
-    const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
-    const { _id, role } = decoded;
-
-    // Fetch user from DB and get access_token
-    const userModel = role === "lawyer" ? Lawyer : Client;
-    const user = await userModel.findById(_id);
-
-    if (!user || !user.googleCalendarToken) {
-      return res.status(401).json({ error: "Google access token not available" });
-    }
-
-    const oauth2Client = new google.auth.OAuth2();
-    oauth2Client.setCredentials({
-      access_token: user.googleCalendarToken,
-    });
-
-    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
-
-    const event = {
-      summary: title,
-      description,
-      start: {
-        dateTime: startTime,
-        timeZone: "UTC",
-      },
-      end: {
-        dateTime: endTime,
-        timeZone: "UTC",
-      },
-      attendees: attendees.map((email) => ({ email })),
-      reminders: {
-        useDefault: true,
-      },
-    };
-
-    const response = await calendar.events.insert({
-      calendarId: "primary",
-      resource: event,
-    });
-
-    return res.status(200).json({
-      message: "Consultation booked successfully",
-      eventId: response.data.id,
-      eventLink: response.data.htmlLink,
-    });
-  } catch (error) {
-    console.error("Error booking consultation:", error);
-    return res.status(500).json({ error: "Failed to book consultation" });
-  }
-};
 
