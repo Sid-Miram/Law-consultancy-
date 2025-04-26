@@ -11,6 +11,10 @@ const { Server } = require('socket.io');
 const socketService = require('./services/socketService');
 require("dotenv").config();
 const chatRoutes = require("./routes/chatRoutes.js");
+const verifyJWT  = require('./middlewares/verifyJwt.js');
+const User = require('./models/User');
+const Message = require('./models/Message');
+const Conversation = require('./models/Conversation');
 
 // CORS configuration
 app.use(cors({
@@ -63,45 +67,44 @@ app.use((err, req, res, next) => {
 
 //routes
 app.use("/", authRoutes);
-app.use("/chat", chatRoutes);
+app.use("/chat", verifyJWT, chatRoutes);
 
 // Socket.IO connection handling
 io.on("connection", (socket) => {
   console.log("A user connected:", socket.id);
 
   // Join conversation room
-  socket.on("join", ({ conversationId }) => {
-    if (conversationId) {
-      socket.join(conversationId);
-      console.log(`User joined conversation: ${conversationId}`);
-    }
+  socket.on("join", async ({ conversationId }) => {
+    socket.join(conversationId);
+    console.log(`User joined conversation: ${conversationId}`);
   });
 
   // Handle messages
-  socket.on("message", (message) => {
+  socket.on("message", async (message) => {
     try {
-      console.log("Received message:", message);
-      if (message && message.conversationId) {
-        io.to(message.conversationId).emit("message", message);
-      } else {
-        console.error("Invalid message format:", message);
-      }
+      // Save message to database
+      const savedMessage = await Message.create({
+        conversation: message.conversationId,
+        sender: message.sender,
+        content: message.content
+      });
+
+      // Update conversation's last message
+      await Conversation.findByIdAndUpdate(
+        message.conversationId,
+        { lastMessage: message.content, updatedAt: Date.now() }
+      );
+
+      // Emit message to conversation room
+      io.to(message.conversationId).emit("message", savedMessage);
     } catch (error) {
       console.error("Error handling message:", error);
     }
   });
 
   // Handle typing status
-  socket.on("typing", (data) => {
-    try {
-      if (data && data.conversationId) {
-        io.to(data.conversationId).emit("typing", { isTyping: data.isTyping });
-      } else {
-        console.error("Invalid typing data:", data);
-      }
-    } catch (error) {
-      console.error("Error handling typing status:", error);
-    }
+  socket.on("typing", ({ conversationId, isTyping }) => {
+    socket.to(conversationId).emit("typing", { isTyping });
   });
 
   // Handle disconnect

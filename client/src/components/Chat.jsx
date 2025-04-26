@@ -57,8 +57,6 @@ const Chat = ({ conversationId, currentUser, otherUser, initialMessages }) => {
         receiver: otherUser._id
       };
 
-      console.log('Sending message:', message);
-
       // Send message through socket
       socketRef.current.emit('message', message);
 
@@ -66,8 +64,6 @@ const Chat = ({ conversationId, currentUser, otherUser, initialMessages }) => {
       const response = await axios.post('http://localhost:3000/chat/messages', message, {
         withCredentials: true
       });
-
-      console.log('Message sent successfully:', response.data);
 
       // Add the message to local state
       setMessages((prevMessages) => [...prevMessages, response.data]);

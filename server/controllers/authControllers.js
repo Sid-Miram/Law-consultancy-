@@ -3,7 +3,7 @@
 const jwt = require("jsonwebtoken");
 // const Client = require("../models/Client.js");
 const Lawyer = require("../models/Lawyer.js");
-const User = require("../models/Client.js");
+const User = require("../models/User.js");
 
 
 const { getGoogleOAuthUrl, getGoogleOAuthToken ,getGoogleUser} = require("../services/googleOAuthServices.js");
@@ -121,47 +121,69 @@ const authControllers = {
     }
   },
 
+  // getAllClients: async (req, res) => {
+  //   try {
+  //     const clients = await Client.find(
+  //       {},
+  //       { 
+  //         name: 1, 
+  //         email: 1, 
+  //         picture: 1, 
+  //         phone: 1, 
+  //         address: 1,
+  //         bio: 1,
+  //         online: 1,
+  //         createdAt: 1
+  //       }
+  //     ).sort({ name: 1 });
+
+  //     res.json(clients);
+  //   } catch (error) {
+  //     console.error('Error fetching clients:', error);
+  //     res.status(500).json({ error: 'Error fetching clients' });
+  //   }
+  // },
   getAllClients: async (req, res) => {
     try {
-      const clients = await Client.find(
-        {},
-        { 
-          name: 1, 
-          email: 1, 
-          picture: 1, 
-          phone: 1, 
-          address: 1,
-          bio: 1,
-          online: 1,
-          createdAt: 1
-        }
-      ).sort({ name: 1 });
-
+      const clients = await User.find({}).sort({ name: 1 });
+  
       res.json(clients);
     } catch (error) {
       console.error('Error fetching clients:', error);
       res.status(500).json({ error: 'Error fetching clients' });
     }
   },
+  
+
+  // getAllLawyers: async (req, res) => {
+  //   try {
+  //     const lawyers = await Lawyer.find(
+  //       {},
+  //       { 
+  //         name: 1, 
+  //         email: 1, 
+  //         picture: 1, 
+  //         phone: 1, 
+  //         address: 1,
+  //         bio: 1,
+  //         specialization: 1,
+  //         experience: 1,
+  //         online: 1,
+  //         createdAt: 1
+  //       }
+  //     ).sort({ name: 1 });
+
+  //     res.json(lawyers);
+  //   } catch (error) {
+  //     console.error('Error fetching lawyers:', error);
+  //     res.status(500).json({ error: 'Error fetching lawyers' });
+  //   }
+  // }
 
   getAllLawyers: async (req, res) => {
     try {
-      const lawyers = await Lawyer.find(
-        {},
-        { 
-          name: 1, 
-          email: 1, 
-          picture: 1, 
-          phone: 1, 
-          address: 1,
-          bio: 1,
-          specialization: 1,
-          experience: 1,
-          online: 1,
-          createdAt: 1
-        }
-      ).sort({ name: 1 });
-
+      const lawyers = await Lawyer.find({}).sort({ name: 1 }); // no projection object
+  
       res.json(lawyers);
     } catch (error) {
       console.error('Error fetching lawyers:', error);

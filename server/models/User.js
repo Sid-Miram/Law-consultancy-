@@ -10,6 +10,6 @@ const clientSchema = new mongoose.Schema({
   googleCalendarToken: {type: String, trim:true},
 });
 
-const Client = mongoose.model("Client", clientSchema);
+const User = mongoose.model("Client", clientSchema);
 
-module.exports = Client;
+module.exports = User;
