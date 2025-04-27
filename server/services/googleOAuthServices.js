@@ -2,8 +2,7 @@
 require("dotenv").config();
 const axios = require("axios");
 const qs = require("qs");
-const jwt = require('jsonwebtoken')
-
+const jwt = require("jsonwebtoken");
 
 function getGoogleOAuthUrl(role = "client") {
   const rootUrl = "https://accounts.google.com/o/oauth2/v2/auth";
@@ -16,14 +15,18 @@ function getGoogleOAuthUrl(role = "client") {
     access_type: "offline",
     response_type: "code",
     prompt: "consent",
-    scope: ["openid", "profile", "email", "https://www.googleapis.com/auth/calendar.events"].join(" "),
+    scope: [
+      "openid",
+      "profile",
+      "email",
+      "https://www.googleapis.com/auth/calendar.events",
+    ].join(" "),
     state: encodeURIComponent(state),
   };
 
   const qs = new URLSearchParams(options);
   return `${rootUrl}?${qs.toString()}`;
 }
-
 
 async function getGoogleOAuthToken(code) {
   // creating rootUrl to access token
@@ -51,11 +54,10 @@ async function getGoogleOAuthToken(code) {
   }
 }
 
-async function getGoogleUser(id_token, token){
-  const user = jwt.decode(id_token,process.env.JWT_SECRET)
-  console.log("user getGoogleUser",user);
-  return user
-  
+async function getGoogleUser(id_token, token) {
+  const user = jwt.decode(id_token, process.env.JWT_SECRET);
+  console.log("user getGoogleUser", user);
+  return user;
 }
 
-module.exports = { getGoogleOAuthUrl, getGoogleOAuthToken,getGoogleUser };
+module.exports = { getGoogleOAuthUrl, getGoogleOAuthToken, getGoogleUser };
