@@ -271,40 +271,57 @@ const Navbar = () => {
               );
             })}
 
-            <div className="pl-6 flex items-center space-x-3">
-              {!isLoading && (user ? (
-                <div className="flex items-center space-x-3">
-                  <div 
-                    className="relative group cursor-pointer"
-                    onClick={handleProfileClick}
-                  >
-                    {user.picture ? (
-                      <img 
-                        src={user.picture} 
-                        alt={user.name} 
-                        className="w-10 h-10 rounded-full object-cover border-2 border-white/20 hover:border-primary-500 transition-all duration-300"
-                      />
-                    ) : (
-                      <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center border-2 border-white/20 hover:border-primary-500 transition-all duration-300">
-                        <User className="w-6 h-6 text-white" />
-                      </div>
-                    )}
-                    <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
-                      View Profile
-                    </div>
-                  </div>
-                  <Button 
-                    variant="outline" 
-                    size="sm" 
-                    onClick={handleLogout}
-                    className={`relative z-10 border-2 transition-all duration-300 ${
-                      isScrolled ? 'border-primary-600 text-primary-600' : 'border-white text-white'
-                    }`}
-                  >
-                    Logout
-                  </Button>
-                </div>
-              ) : (
+<div className="pl-6 flex items-center space-x-3">
+  {!isLoading && (user ? (
+    <div className="flex items-center space-x-3">
+      {/* Profile Picture */}
+      <div 
+        className="relative group cursor-pointer"
+        onClick={handleProfileClick}
+      >
+        {user.picture ? (
+          <img 
+            src={user.picture} 
+            alt={user.name} 
+            className="w-10 h-10 rounded-full object-cover border-2 border-white/20 hover:border-primary-500 transition-all duration-300"
+          />
+        ) : (
+          <div className="w-10 h-10 rounded-full bg-primary-500 flex items-center justify-center border-2 border-white/20 hover:border-primary-500 transition-all duration-300">
+            <User className="w-6 h-6 text-white" />
+          </div>
+        )}
+        <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-2 py-1 bg-gray-800 text-white text-xs rounded opacity-0 group-hover:opacity-100 transition-opacity duration-200 whitespace-nowrap">
+          View Profile
+        </div>
+      </div>
+
+      {/* Show Consultation Button if role is lawyer */}
+      {user.role === 'lawyer' && (
+        <Button 
+          variant="outline" 
+          size="sm" 
+          onClick={() => navigate('/consultation')}
+          className={`relative z-10 border-2 transition-all duration-300 ${
+            isScrolled ? 'border-primary-600 text-primary-600' : 'border-white text-white'
+          }`}
+        >
+          Consultation
+        </Button>
+      )}
+
+      {/* Logout Button */}
+      <Button 
+        variant="outline" 
+        size="sm" 
+        onClick={handleLogout}
+        className={`relative z-10 border-2 transition-all duration-300 ${
+          isScrolled ? 'border-primary-600 text-primary-600' : 'border-white text-white'
+        }`}
+      >
+        Logout
+      </Button>
+    </div>
+  ) :(
                 <>
                   <Link 
                     to="/login" 
