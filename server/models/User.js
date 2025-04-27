@@ -3,61 +3,64 @@
 const mongoose = require("mongoose");
 
 const userSchema = new mongoose.Schema({
-  name: { 
-    type: String, 
-    required: true 
-  },
-  picture: { 
-    type: String, 
-    required: true 
-  },
-  email: { 
-    type: String, 
-    required: true, 
-    unique: true, 
-    lowercase: true, 
-    trim: true 
-  },
-  role: { 
-    type: String, 
-    enum: ['client', 'lawyer'], 
+  name: {
+    type: String,
     required: true,
-    lowercase: true, 
-    trim: true 
   },
-  googleCalendarToken: { 
-    type: String, 
-    trim: true 
+  picture: {
+    type: String,
+    required: true,
+  },
+  email: {
+    type: String,
+    required: true,
+    unique: true,
+    lowercase: true,
+    trim: true,
+  },
+  role: {
+    type: String,
+    enum: ["client", "lawyer"],
+    required: true,
+    lowercase: true,
+    trim: true,
+  },
+  googleCalendarToken: {
+    type: String,
+    trim: true,
   },
 
   // Lawyer specific fields
-  specialization: { 
-    type: String 
+  specialization: {
+    type: String,
   },
-  experience: { 
-    type: Number 
+  experience: {
+    type: Number,
   }, // in years
-  location: { 
-    type: String 
+  location: {
+    type: String,
   },
 
   createdAt: {
     type: Date,
-    default: Date.now
-  }
+    default: Date.now,
+  },
 });
 
 // Custom validation: if role is 'lawyer', extra fields are required
-userSchema.pre('validate', function (next) {
-  if (this.role === 'lawyer') {
+userSchema.pre("validate", function (next) {
+  if (this.role === "lawyer") {
     if (!this.specialization) {
-      this.invalidate('specialization', 'Specialization is required for lawyers');
+      this.invalidate(
+        "specialization",
+        "Specialization is required for lawyers",
+      );
     }
     if (this.experience == null) {
-      this.invalidate('experience', 'Experience is required for lawyers');
+      this.invalidate("experience", "Experience is required for lawyers");
     }
     if (!this.location) {
-      this.invalidate('location', 'Location is required for lawyers');
+      this.invalidate("location", "Location is required for lawyers");
     }
   }
   next();

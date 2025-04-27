@@ -6,18 +6,17 @@ const Client = require("../models/User.js");
 require("dotenv").config();
 //import controllers
 const authControllers = require("../controllers/authControllers.js");
-const verifyJWT = require("../middlewares/verifyJwt.js"); 
+const verifyJWT = require("../middlewares/verifyJwt.js");
 const User = require("../models/User.js");
-
 
 router.get("/", authControllers.checkHealth);
 router.get("/auth/google", authControllers.googleLoginRedirect);
 router.get("/auth/google/callback", authControllers.googleLogin);
 router.post("/consultation", authControllers.createCalendarEvent);
-router.post("/testing", verifyJWT, (req,res)=> res.send("NICEE!"));
+router.post("/testing", verifyJWT, (req, res) => res.send("NICEE!"));
 
 router.get("/find-user", verifyJWT, async (req, res) => {
-  const userId = req.user.userId;  // Use userId instead of _id from the decoded token
+  const userId = req.user.userId; // Use userId instead of _id from the decoded token
   // console.log("User ID from decoded token:", userId);  // Logging for debugging
 
   if (!userId) {
@@ -49,10 +48,10 @@ router.get("/users", verifyJWT, async (req, res) => {
 
 router.post("/logout", (req, res) => {
   // Clear the 'token' cookie
-  res.clearCookie("token", { httpOnly: true, secure: true })  // Set secure to true if using https
+  res
+    .clearCookie("token", { httpOnly: true, secure: true }) // Set secure to true if using https
     .status(200)
     .json({ message: "Logout successful" });
 });
-
 
 module.exports = router;

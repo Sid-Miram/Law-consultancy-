@@ -2,7 +2,11 @@
 
 const jwt = require("jsonwebtoken");
 const User = require("../models/User.js");
-const { getGoogleOAuthUrl, getGoogleOAuthToken } = require("../services/googleOAuthServices.js");
+const {
+  getGoogleOAuthUrl,
+  getGoogleOAuthToken,
+} = require("../services/googleOAuthServices.js");
+const { google } = require("googleapis");
 
 const authControllers = {
   // Health Check
@@ -34,12 +38,13 @@ const authControllers = {
 
       if (!user) {
         // Create new user
-        const role = req.query.role || 'client'; // default role = client
+        const role = req.query.role || "client"; // default role = client
         user = new User({
           name: googleUser.name,
           email: googleUser.email,
           picture: googleUser.picture,
-          role: role
+          role: role,
+          googleCalendarToken: access_token, 
         });
         await user.save();
       }
@@ -48,52 +53,105 @@ const authControllers = {
       const token = jwt.sign(
         { userId: user._id, role: user.role },
         process.env.JWT_SECRET,
-        { expiresIn: '1d' }
+        { expiresIn: "1d" },
       );
 
       // Set token cookie
-      res.cookie('token', token, {
+      res.cookie("token", token, {
         httpOnly: true,
-        secure: process.env.NODE_ENV === 'production',
-        sameSite: 'strict',
-        maxAge: 24 * 60 * 60 * 1000 // 1 day
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "strict",
+        maxAge: 24 * 60 * 60 * 1000, // 1 day
       });
 
       // Redirect to frontend
-      res.redirect('http://localhost:4500/');
+      res.redirect("http://localhost:4500/");
     } catch (error) {
       console.error("Error in googleLogin:", error);
-      res.redirect('http://localhost:4500/login?error=authentication_failed');
+      res.redirect("http://localhost:4500/login?error=authentication_failed");
     }
   },
 
   // Create Calendar Event (optional, if you use Google Calendar)
   createCalendarEvent: async (req, res) => {
+    const { title, description, startTime, endTime, attendees } = req.body;
+
+    const authToken = req.cookies.token;
+
+    if (!authToken) {
+      return res.status(403).json({ error: "Authentication required" });
+    }
+
     try {
-      const { summary, description, startTime, endTime, timeZone } = req.body;
-      const event = await createCalendarEvent(summary, description, startTime, endTime, timeZone);
-      res.json(event);
+      const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+      const { userId, role } = decoded;
+      console.log(decoded);
+
+      // Fetch user from DB and get access_token
+
+      const user = await User.findById(userId);
+      console.log(user);
+
+      if (!user || !user.googleCalendarToken) {
+        return res
+          .status(401)
+          .json({ error: "Google access token not available" });
+      }
+
+      const oauth2Client = new google.auth.OAuth2();
+      oauth2Client.setCredentials({
+        access_token: user.googleCalendarToken,
+      });
+
+      const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+      const event = {
+        summary: title,
+        description,
+        start: {
+          dateTime: startTime,
+          timeZone: "UTC",
+        },
+        end: {
+          dateTime: endTime,
+          timeZone: "UTC",
+        },
+        attendees: attendees.map((email) => ({ email })),
+        reminders: {
+          useDefault: true,
+        },
+      };
+
+      const response = await calendar.events.insert({
+        calendarId: "primary",
+        resource: event,
+      });
+
+      return res.status(200).json({
+        message: "Consultation booked successfully",
+        eventId: response.data.id,
+        eventLink: response.data.htmlLink,
+      });
     } catch (error) {
-      console.error("Error creating calendar event:", error);
-      res.status(500).json({ error: "Error creating calendar event" });
+      console.error("Error booking consultation:", error);
+      return res.status(500).json({ error: "Failed to book consultation" });
     }
   },
 
   // Find Current User (from token)
- 
 
   // Get All Users (except current user)
   getAllUsers: async (req, res) => {
     try {
       const users = await User.find(
         { _id: { $ne: req.user.userId } },
-        { name: 1, email: 1, role: 1, picture: 1, online: 1 }
+        { name: 1, email: 1, role: 1, picture: 1, online: 1 },
       ).sort({ name: 1 });
 
       res.json(users);
     } catch (error) {
-      console.error('Error fetching users:', error);
-      res.status(500).json({ error: 'Error fetching users' });
+      console.error("Error fetching users:", error);
+      res.status(500).json({ error: "Error fetching users" });
     }
   },
 
@@ -101,23 +159,23 @@ const authControllers = {
   getAllClients: async (req, res) => {
     try {
       const clients = await User.find(
-        { role: 'client' },
-        { 
-          name: 1, 
-          email: 1, 
-          picture: 1, 
-          phone: 1, 
+        { role: "client" },
+        {
+          name: 1,
+          email: 1,
+          picture: 1,
+          phone: 1,
           address: 1,
           bio: 1,
           online: 1,
-          createdAt: 1
-        }
+          createdAt: 1,
+        },
       ).sort({ name: 1 });
 
       res.json(clients);
     } catch (error) {
-      console.error('Error fetching clients:', error);
-      res.status(500).json({ error: 'Error fetching clients' });
+      console.error("Error fetching clients:", error);
+      res.status(500).json({ error: "Error fetching clients" });
     }
   },
 
@@ -125,27 +183,27 @@ const authControllers = {
   getAllLawyers: async (req, res) => {
     try {
       const lawyers = await User.find(
-        { role: 'lawyer' },
-        { 
-          name: 1, 
-          email: 1, 
-          picture: 1, 
-          phone: 1, 
+        { role: "lawyer" },
+        {
+          name: 1,
+          email: 1,
+          picture: 1,
+          phone: 1,
           address: 1,
           bio: 1,
           specialization: 1,
           experience: 1,
           online: 1,
-          createdAt: 1
-        }
+          createdAt: 1,
+        },
       ).sort({ name: 1 });
 
       res.json(lawyers);
     } catch (error) {
-      console.error('Error fetching lawyers:', error);
-      res.status(500).json({ error: 'Error fetching lawyers' });
+      console.error("Error fetching lawyers:", error);
+      res.status(500).json({ error: "Error fetching lawyers" });
     }
-  }
+  },
 };
 
 module.exports = authControllers;
