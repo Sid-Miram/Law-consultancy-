@@ -1,26 +1,32 @@
 const mongoose = require('mongoose');
 
 const messageSchema = new mongoose.Schema({
-  conversation: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Conversation',
-    required: true
-  },
-  sender: {
-    type: mongoose.Schema.Types.ObjectId,
-    ref: 'Client',
-    required: true
-  },
-  content: {
-    type: String,
-    required: true
-  },
-  read: {
-    type: Boolean,
-    default: false
-  }
-}, {
-  timestamps: true
-});
+    senderId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        required: true
+    },
+    receiverId: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "user",
+        required: true
+    },
+    message: {
+        type: String,
+        required: true
+    },
+    status: {
+        type: String,
+        enum: ['sent', 'delivered', 'read'],
+        default: 'sent'  
+    },
 
-module.exports = mongoose.model('Message', messageSchema); 
+    isOnline:{
+        type: Boolean,
+        default: false
+    }
+}, { timestamps: true });  
+
+const Message = mongoose.model("message", messageSchema);
+
+module.exports = { Message };
