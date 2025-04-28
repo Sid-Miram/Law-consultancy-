@@ -15,6 +15,7 @@ router.get("/auth/google/callback", authControllers.googleLogin);
 router.post("/consultation", authControllers.createCalendarEvent);
 router.post("/testing", verifyJWT, (req, res) => res.send("NICEE!"));
 router.get("/meetInfo", verifyJWT, authControllers.getUserMeetings);
+router.get("/cancelMeeting", verifyJWT, authControllers.cancelMeeting);
 router.get("/find-user", verifyJWT, async (req, res) => {
   const userId = req.user.userId; // Use userId instead of _id from the decoded token
   // console.log("User ID from decoded token:", userId);  // Logging for debugging
