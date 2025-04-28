@@ -157,7 +157,7 @@ createCalendarEvent: async (req, res) => {
 },
 
 
-  getUserMeetings: async (req, res) => {
+getUserMeetings: async (req, res) => {
   const authToken = req.cookies.token; // or from headers (Authorization)
 
   if (!authToken) {
@@ -172,18 +172,34 @@ createCalendarEvent: async (req, res) => {
       .populate("attendees", "name email")
       .sort({ startTime: 1 });
 
-    const formattedMeetings = meetings.map(meeting => ({
-      title: meeting.title,
-      description: meeting.description,
-      startTime: meeting.startTime,
-      endTime: meeting.endTime,
-      meetLink: meeting.meetLink,
-      status: meeting.status,
-      attendees: meeting.attendees.map(attendee => ({
-        name: attendee.name,
-        email: attendee.email,
-      })),
-    }));
+    const formattedMeetings = meetings.map(meeting => {
+      // Find the other attendee (not the current user)
+      const otherAttendee = meeting.attendees.find(attendee => 
+        attendee._id.toString() !== userId.toString()
+      );
+
+      return {
+        id: meeting._id,
+        title: meeting.title,
+        description: meeting.description,
+        startTime: meeting.startTime,
+        endTime: meeting.endTime,
+        meetLink: meeting.meetLink,
+        status: meeting.status,
+        // Include both all attendees and the specific other attendee
+        attendees: meeting.attendees.map(attendee => ({
+          id: attendee._id,
+          name: attendee.name,
+          email: attendee.email,
+          isCurrentUser: attendee._id.toString() === userId.toString()
+        })),
+        otherAttendee: otherAttendee ? {
+          id: otherAttendee._id,
+          name: otherAttendee.name,
+          email: otherAttendee.email
+        } : null
+      };
+    });
 
     return res.status(200).json(formattedMeetings);
   } catch (error) {
