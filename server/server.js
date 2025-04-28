@@ -7,19 +7,20 @@ const http = require("http");
 const { Server } = require("socket.io");
 const cookieParser = require("cookie-parser");
 const authRoutes = require("./routes/authRoutes.js");
-const { app, server } = require('./services/socketService.js');
+const { app, server } = require("./services/socketService.js");
 const chatRoutes = require("./routes/chatRoutes.js");
 const verifyJWT = require("./middlewares/verifyJwt.js");
 require("dotenv").config();
 
-
 // Middleware
-app.use(cors({
-  origin: ["http://localhost:4500", "http://localhost:3000"],
-  credentials: true,
-  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type", "Authorization"],
-}));
+app.use(
+  cors({
+    origin: ["http://localhost:4500", "http://localhost:3000"],
+    credentials: true,
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+  }),
+);
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
