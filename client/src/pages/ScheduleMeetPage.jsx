@@ -281,7 +281,7 @@ const handleSubmit = async (e) => {
                           >
                             <div className="flex items-center">
                               <img
-                                src={lawyer.imageUrl || '/api/placeholder/64/64'}
+                                src={lawyer.picture || '/api/placeholder/64/64'}
                                 alt={lawyer.name}
                                 className="w-16 h-16 rounded-full object-cover mr-4"
                               />

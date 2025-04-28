@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
 import { Calendar, Clock, User, Video, ExternalLink, Search, Filter, CheckSquare, MoreHorizontal, AlertCircle, ArrowUpDown, Users } from 'lucide-react';
 import Card, { CardBody, CardHeader, CardFooter } from '../components/Card';
 import Button from '../components/Button';
@@ -8,70 +9,58 @@ const ConsultationPage = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [sortOrder, setSortOrder] = useState('asc');
-  
-  // Mock consultation data
-  const consultations = [
-    {
-      id: 1,
-      clientName: 'Sarah Johnson',
-      clientEmail: 'sarah.johnson@example.com',
-      clientPhone: '(555) 123-4567',
-      date: '2025-05-15',
-      time: '10:00',
-      status: 'upcoming',
-      meetLink: 'https://meet.google.com/abc-defg-hij',
-      notes: 'Divorce consultation, initial meeting to discuss options',
-      details: 'Looking for advice on filing for divorce, custody arrangements for 2 children, and division of assets including a small business.'
-    },
-    {
-      id: 2,
-      clientName: 'Michael Rodriguez',
-      clientEmail: 'michael.r@example.com',
-      clientPhone: '(555) 987-6543',
-      date: '2025-05-16',
-      time: '14:00',
-      status: 'upcoming',
-      meetLink: 'https://meet.google.com/klm-nopq-rst',
-      notes: 'Business formation, wants to start an LLC',
-      details: 'Starting a tech consulting business and needs advice on LLC vs S-Corp, liability protection, and contract templates.'
-    },
-    {
-      id: 3,
-      clientName: 'Jennifer Lee',
-      clientEmail: 'jennifer.lee@example.com',
-      clientPhone: '(555) 456-7890',
-      date: '2025-05-10',
-      time: '11:00',
-      status: 'completed',
-      meetLink: 'https://meet.google.com/uvw-xyz-123',
-      notes: 'Will preparation, follow-up needed',
-      details: 'Needs a new will drafted. Has 3 children and specific requests for asset distribution. Discussed power of attorney and advanced directives.'
-    },
-    {
-      id: 4,
-      clientName: 'David Chen',
-      clientEmail: 'david.chen@example.com',
-      clientPhone: '(555) 789-0123',
-      date: '2025-05-12',
-      time: '15:30',
-      status: 'cancelled',
-      meetLink: 'https://meet.google.com/456-789-012',
-      notes: 'Cancelled by client, reschedule pending',
-      details: 'Employment contract review. Client has concerns about non-compete clause and intellectual property provisions.'
-    },
-    {
-      id: 5,
-      clientName: 'Amanda Wilson',
-      clientEmail: 'amanda.w@example.com',
-      clientPhone: '(555) 234-5678',
-      date: '2025-05-17',
-      time: '13:00',
-      status: 'upcoming',
-      meetLink: 'https://meet.google.com/345-678-901',
-      notes: 'Real estate closing issue',
-      details: 'Problem with real estate closing. Seller failed to disclose water damage. Wants to know legal options before closing date next week.'
+  const [consultations, setConsultations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Fetch consultations from the backend
+  useEffect(() => {
+    fetchConsultations();
+  }, []);
+
+  const fetchConsultations = async () => {
+    setLoading(true);
+    try {
+      // Use the proper endpoint path as defined in your router
+      const response = await axios.get("http://localhost:3000/meetInfo", {
+        withCredentials: true, // Important to send cookies for authentication
+      });
+      
+      // Map backend meeting data to frontend consultation format
+      const formatted = response.data.map(meeting => {
+        // Get client info from the otherAttendee property
+        const clientInfo = meeting.otherAttendee || { name: "Unknown", email: "" };
+        
+        // Map the backend status to frontend status
+        let status = "upcoming";
+        if (meeting.status === "completed") status = "completed";
+        if (meeting.status === "cancelled") status = "cancelled";
+        
+        return {
+          id: meeting.id,
+          clientName: clientInfo.name,
+          clientEmail: clientInfo.email,
+          date: new Date(meeting.startTime).toISOString().split('T')[0],
+          time: new Date(meeting.startTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          endTime: new Date(meeting.endTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          status: status,
+          meetLink: meeting.meetLink,
+          details: meeting.title || "",
+          description: meeting.description || "",
+          createdAt: meeting.createdAt
+        };
+      });
+      
+      setConsultations(formatted);
+      setError(null);
+    } catch (err) {
+      console.error("Failed to fetch consultations:", err);
+      setError("Failed to load your consultations. Please try again later.");
+      setConsultations([]);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   // Format date for display
   const formatDate = (dateString) => {
@@ -298,7 +287,28 @@ const ConsultationPage = () => {
             </div>
             
             <CardBody>
-              {filteredConsultations.length > 0 ? (
+              {loading ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center h-16 w-16 bg-gray-100 rounded-full mb-4">
+                    <div className="animate-spin h-8 w-8 border-4 border-blue-500 rounded-full border-t-transparent"></div>
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Loading consultations...</h3>
+                </div>
+              ) : error ? (
+                <div className="text-center py-12">
+                  <div className="inline-flex items-center justify-center h-16 w-16 bg-red-100 rounded-full mb-4">
+                    <AlertCircle className="h-8 w-8 text-red-500" />
+                  </div>
+                  <h3 className="text-lg font-medium text-gray-900 mb-2">Error loading consultations</h3>
+                  <p className="text-gray-500">{error}</p>
+                  <button 
+                    onClick={fetchConsultations}
+                    className="mt-4 px-4 py-2 bg-blue-800 text-white rounded-md hover:bg-blue-900"
+                  >
+                    Try Again
+                  </button>
+                </div>
+              ) : filteredConsultations.length > 0 ? (
                 <div className="space-y-6">
                   {filteredConsultations.map((consultation) => (
                     <Card key={consultation.id} className="shadow-sm">
@@ -318,7 +328,7 @@ const ConsultationPage = () => {
                               <Clock className="h-5 w-5 text-blue-800 mr-2 flex-shrink-0" />
                               <div>
                                 <p className="text-sm text-gray-500">Time</p>
-                                <p className="font-medium">{formatTime(consultation.time)}</p>
+                                <p className="font-medium">{formatTime(consultation.time)} - {formatTime(consultation.endTime)}</p>
                               </div>
                             </div>
                             
@@ -336,19 +346,21 @@ const ConsultationPage = () => {
                                 <p className="text-sm text-gray-500">Client</p>
                                 <p className="font-medium">{consultation.clientName}</p>
                                 <p className="text-sm text-gray-600">{consultation.clientEmail}</p>
-                                <p className="text-sm text-gray-600">{consultation.clientPhone}</p>
                               </div>
                             </div>
                             
                             <div>
-                              <p className="text-sm text-gray-500 mb-1">Details</p>
-                              <p className="text-sm text-gray-600">{consultation.details}</p>
+                              <p className="text-sm text-gray-500 mb-1">Subject</p>
+                              <p className="font-medium">{consultation.details}</p>
+                              {consultation.description && (
+                                <p className="text-sm text-gray-600 mt-1">{consultation.description}</p>
+                              )}
                             </div>
                           </div>
                           
                           {/* Right column - Actions */}
                           <div className="md:w-1/4 md:pl-4">
-                            {consultation.status === 'upcoming' && (
+                            {consultation.status === 'upcoming' && consultation.meetLink && (
                               <a 
                                 href={consultation.meetLink} 
                                 target="_blank" 
@@ -366,7 +378,16 @@ const ConsultationPage = () => {
                               </button>
                               
                               {consultation.status === 'upcoming' && (
-                                <button className="flex items-center w-full px-4 py-2 text-left border border-red-200 text-red-700 rounded-md hover:bg-red-50 transition-colors">
+                                <button 
+                                  className="flex items-center w-full px-4 py-2 text-left border border-red-200 text-red-700 rounded-md hover:bg-red-50 transition-colors"
+                                  onClick={() => {
+                                    // Add cancel functionality here
+                                    if (window.confirm("Are you sure you want to cancel this meeting?")) {
+                                      // Implement cancel API call
+                                      console.log("Cancelling meeting:", consultation.id);
+                                    }
+                                  }}
+                                >
                                   <span>Cancel Meeting</span>
                                 </button>
                               )}
