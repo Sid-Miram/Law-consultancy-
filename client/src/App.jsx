@@ -26,6 +26,7 @@ function App() {
             <Route path="/schedule-meet" element={<ScheduleMeetPage />} />
             <Route path="/consultation" element={<ConsultationPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>
