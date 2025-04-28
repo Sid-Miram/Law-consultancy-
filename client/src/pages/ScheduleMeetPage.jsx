@@ -12,6 +12,7 @@ const ScheduleMeetPage = () => {
     firstName: '',
     lastName: '',
     email: '',
+    name: '',
     caseDetails: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,88 +96,90 @@ const ScheduleMeetPage = () => {
   const handlePrevStep = () => {
     setCurrentStep(currentStep - 1);
   };
-// Convert time string to ISO format with IST adjustment
-const convertToISODateTime = (dateStr, timeStr) => {
-  const date = new Date(dateStr);
-  const timeParts = timeStr.match(/(\d+):(\d+) (AM|PM)/);
+  
+  // Convert time string to ISO format with IST adjustment
+  const convertToISODateTime = (dateStr, timeStr) => {
+    const date = new Date(dateStr);
+    const timeParts = timeStr.match(/(\d+):(\d+) (AM|PM)/);
 
-  if (!timeParts) return null;
+    if (!timeParts) return null;
 
-  let hours = parseInt(timeParts[1]);
-  const minutes = parseInt(timeParts[2]);
-  const period = timeParts[3];
+    let hours = parseInt(timeParts[1]);
+    const minutes = parseInt(timeParts[2]);
+    const period = timeParts[3];
 
-  // Convert to 24-hour format
-  if (period === 'PM' && hours < 12) hours += 12;
-  if (period === 'AM' && hours === 12) hours = 0;
+    // Convert to 24-hour format
+    if (period === 'PM' && hours < 12) hours += 12;
+    if (period === 'AM' && hours === 12) hours = 0;
 
+    date.setHours(hours, minutes, 0, 0);
 
-  date.setHours(hours, minutes, 0, 0);
+    // Manually add 5 hours 30 minutes for IST
+    date.setMinutes(date.getMinutes() + 330);
 
-  // Manually add 5 hours 30 minutes for IST
-  date.setMinutes(date.getMinutes() + 330 );
+    // Get the new ISO string
+    return date.toISOString();
+  };
+  
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    setIsSubmitting(true);
 
-  // Get the new ISO string
-  return date.toISOString();
-};
-const handleSubmit = async (e) => {
-  e.preventDefault();
-  setIsSubmitting(true);
+    try {
+      const selectedLawyerInfo = getSelectedLawyerInfo();
+      if (!selectedLawyerInfo) {
+        throw new Error('Selected lawyer not found');
+      }
 
-  try {
-    const selectedLawyerInfo = getSelectedLawyerInfo();
-    if (!selectedLawyerInfo) {
-      throw new Error('Selected lawyer not found');
+      // Ensure we have the lawyer's email
+      const lawyerEmail = selectedLawyerInfo.email;
+      if (!lawyerEmail) {
+        throw new Error('Lawyer email not available');
+      }
+
+      // Calculate event start and end times
+      const startTime = convertToISODateTime(selectedDate, selectedTime);
+
+      // Set end time to be 1 hour after start time
+      const endDateTime = new Date(startTime);
+      endDateTime.setHours(endDateTime.getHours() + 1);
+      const endTime = endDateTime.toISOString();
+
+      // Create meeting details with both emails
+      const meetingData = {
+        title: `Legal Consultation with ${selectedLawyerInfo.name}`,
+        description: `Case Details: ${formData.caseDetails || 'No details provided'}`,
+        startTime: startTime,
+        endTime: endTime,
+        attendees: [formData.email, lawyerEmail], // Include both user and lawyer emails
+        lawyerId: selectedLawyerInfo._id // Pass the lawyer ID to backend
+      };
+
+      // Send request to create calendar event
+      const response = await axios.post('http://localhost:3000/consultation', meetingData, {
+        withCredentials: true
+      });
+
+      setCalendarEventInfo(response.data);
+      setBookingComplete(true);
+    } catch (err) {
+      console.error('Error submitting booking:', err);
+      setError(err.message || 'Failed to book consultation');
+    } finally {
+      setIsSubmitting(false);
     }
-
-    // Ensure we have the lawyer's email
-    const lawyerEmail = selectedLawyerInfo.email;
-    if (!lawyerEmail) {
-      throw new Error('Lawyer email not available');
-    }
-
-    // Calculate event start and end times
-    const startTime = convertToISODateTime(selectedDate, selectedTime);
-
-    // Set end time to be 1 hour after start time
-    const endDateTime = new Date(startTime);
-    endDateTime.setHours(endDateTime.getHours() + 1);
-    const endTime = endDateTime.toISOString();
-
-    // Create meeting details with both emails
-    const meetingData = {
-      title: `Legal Consultation with ${selectedLawyerInfo.name || `${selectedLawyerInfo.firstName} ${selectedLawyerInfo.lastName}`}`,
-      description: `Case Details: ${formData.caseDetails || 'No details provided'}`,
-      startTime: startTime,
-      endTime: endTime,
-      attendees: [formData.email, lawyerEmail], // Include both user and lawyer emails
-      lawyerId: selectedLawyerInfo.id // Pass the lawyer ID to backend
-    };
-
-    // Send request to create calendar event
-    const response = await axios.post('http://localhost:3000/consultation', meetingData, {
-      withCredentials: true
-    });
-
-    setCalendarEventInfo(response.data);
-    setBookingComplete(true);
-  } catch (err) {
-    console.error('Error submitting booking:', err);
-    setError(err.message || 'Failed to book consultation');
-  } finally {
-    setIsSubmitting(false);
-  }
-};
+  };
 
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return format(date, 'EEEE, MMMM d, yyyy');
   };
 
+  // Updated function to get the selected lawyer info
   const getSelectedLawyerInfo = () => {
-    return lawyers.find(lawyer => lawyer.id === selectedLawyer);
+    return lawyers.find(lawyer => lawyer._id === selectedLawyer);
   };
-
+  
   return (
     <div className="pt-16">
       {/* Header */}
@@ -272,12 +275,12 @@ const handleSubmit = async (e) => {
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                         {lawyers.map((lawyer) => (
                           <div
-                            key={lawyer.id}
-                            className={`card cursor-pointer transition-all p-4 rounded-lg ${selectedLawyer === lawyer.id
+                            key={lawyer._id}
+                            className={`card cursor-pointer transition-all p-4 rounded-lg ${selectedLawyer === lawyer._id
                                 ? 'border-2 border-primary-500 shadow-md'
                                 : 'hover:shadow-md border border-gray-100'
                               }`}
-                            onClick={() => setSelectedLawyer(lawyer.id)}
+                            onClick={() => setSelectedLawyer(lawyer._id)}
                           >
                             <div className="flex items-center">
                               <img
@@ -286,8 +289,8 @@ const handleSubmit = async (e) => {
                                 className="w-16 h-16 rounded-full object-cover mr-4"
                               />
                               <div>
-                                <h3 className="font-serif text-lg font-bold">{lawyer.name || `${lawyer.firstName} ${lawyer.lastName}`}</h3>
-                                <p className="text-gray-600">{lawyer.specialization || lawyer.expertise || 'Legal Consultant'}</p>
+                                <h3 className="font-serif text-lg font-bold">{lawyer.name}</h3>
+                                <p className="text-gray-600">{lawyer.specialization || 'Legal Consultant'}</p>
                               </div>
                             </div>
                           </div>
@@ -306,6 +309,7 @@ const handleSubmit = async (e) => {
                     </div>
                   </div>
                 )}
+
 
                 {/* Step 2: Choose Date & Time */}
                 {currentStep === 2 && (
@@ -467,21 +471,23 @@ const handleSubmit = async (e) => {
                     </p>
 
                     <div className="bg-gray-50 rounded-lg p-6 mb-8">
-                      <div className="flex items-center mb-6 pb-4 border-b border-gray-200">
-                        <img
-                          src={getSelectedLawyerInfo()?.imageUrl || '/api/placeholder/64/64'}
-                          alt={getSelectedLawyerInfo()?.name || `${getSelectedLawyerInfo()?.firstName} ${getSelectedLawyerInfo()?.lastName}`}
-                          className="w-16 h-16 rounded-full object-cover mr-4"
-                        />
-                        <div>
-                          <h3 className="font-serif text-lg font-bold">
-                            {getSelectedLawyerInfo()?.name || `${getSelectedLawyerInfo()?.firstName} ${getSelectedLawyerInfo()?.lastName}`}
-                          </h3>
-                          <p className="text-gray-600">
-                            {getSelectedLawyerInfo()?.specialization || getSelectedLawyerInfo()?.expertise || 'Legal Consultant'}
-                          </p>
+                      {getSelectedLawyerInfo() && (
+                        <div className="flex items-center mb-6 pb-4 border-b border-gray-200">
+                          <img
+                            src={getSelectedLawyerInfo().picture || '/api/placeholder/64/64'}
+                            alt={getSelectedLawyerInfo().name}
+                            className="w-16 h-16 rounded-full object-cover mr-4"
+                          />
+                          <div>
+                            <h3 className="font-serif text-lg font-bold">
+                              {getSelectedLawyerInfo().name}
+                            </h3>
+                            <p className="text-gray-600">
+                              {getSelectedLawyerInfo().specialization || 'Legal Consultant'}
+                            </p>
+                          </div>
                         </div>
-                      </div>
+                      )}
 
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
@@ -577,12 +583,14 @@ const handleSubmit = async (e) => {
                 <div className="bg-white rounded-lg p-6 shadow-md max-w-md mx-auto mb-8">
                   <h3 className="font-medium text-gray-800 mb-4">Appointment Details</h3>
                   <ul className="space-y-3 text-gray-600 text-left">
-                    <li className="flex">
-                      <User className="h-5 w-5 text-primary-600 mr-3 flex-shrink-0" />
-                      <span>
-                        <strong>Attorney:</strong> {getSelectedLawyerInfo()?.name || `${getSelectedLawyerInfo()?.firstName} ${getSelectedLawyerInfo()?.lastName}`}
-                      </span>
-                    </li>
+                    {getSelectedLawyerInfo() && (
+                      <li className="flex">
+                        <User className="h-5 w-5 text-primary-600 mr-3 flex-shrink-0" />
+                        <span>
+                          <strong>Attorney:</strong> {getSelectedLawyerInfo().name}
+                        </span>
+                      </li>
+                    )}
                     <li className="flex">
                       <CalendarIcon className="h-5 w-5 text-primary-600 mr-3 flex-shrink-0" />
                       <span>
