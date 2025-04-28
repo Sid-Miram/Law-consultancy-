@@ -15,7 +15,7 @@ require("dotenv").config();
 // Middleware
 app.use(
   cors({
-    origin: ["http://localhost:4500", "http://localhost:3000"],
+    origin: ["http://localhost:4500", "http://localhost:3000" , "https://law-consultancy-2.onrender.com" , "http://law-consultancy-0-git-main-nitins-projects-f0e981f1.vercel.app"],
     credentials: true,
     methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allowedHeaders: ["Content-Type", "Authorization"],
