@@ -22,7 +22,7 @@ const ConsultationPage = () => {
     setLoading(true);
     try {
       // Use the proper endpoint path as defined in your router
-      const response = await axios.get("http://localhost:3000/meetInfo", {
+      const response = await axios.get("https://law-consultancy-2.onrender.com/meetInfo", {
         withCredentials: true, // Important to send cookies for authentication
       });
       
