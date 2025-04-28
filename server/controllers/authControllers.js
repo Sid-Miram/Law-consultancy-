@@ -134,10 +134,10 @@ cancelMeeting: async (req, res) => {
       });
 
       // Redirect to frontend
-      res.redirect("http://localhost:4500/");
+      res.redirect("http://law-consultancy-0-git-main-nitins-projects-f0e981f1.vercel.app/");
     } catch (error) {
       console.error("Error in googleLogin:", error);
-      res.redirect("http://localhost:4500/login?error=authentication_failed");
+      res.redirect("http://law-consultancy-0-git-main-nitins-projects-f0e981f1.vercel.app/login?error=authentication_failed");
     }
   },
 
