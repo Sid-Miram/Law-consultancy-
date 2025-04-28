@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { CheckCircle, Users, BookOpen, Calendar, ArrowRight, Shield, Scale, Gavel } from 'lucide-react';
@@ -272,5 +273,6 @@ const HomePage = () => {
     </div>
   );
 };
+
 
 export default HomePage;

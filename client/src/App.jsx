@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import Layout from './components/Layout.jsx';
@@ -25,6 +26,7 @@ function App() {
             <Route path="/schedule-meet" element={<ScheduleMeetPage />} />
             <Route path="/consultation" element={<ConsultationPage />} />
             <Route path="/chat" element={<ChatPage />} />
+            
             <Route path="/profile" element={<ProfilePage />} />
           </Route>
         </Routes>
@@ -33,4 +35,4 @@ function App() {
   );
 }
 
-export default App;
+export default App

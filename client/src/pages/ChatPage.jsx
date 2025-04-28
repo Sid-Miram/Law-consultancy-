@@ -1,6 +1,6 @@
+
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
-import Navbar from "../components/Navbar";
 
 const ChatPage = () => {
   const [users, setUsers] = useState([]);
@@ -546,4 +546,5 @@ const ChatPage = () => {
     );
   };
   
+
   export default ChatPage;
