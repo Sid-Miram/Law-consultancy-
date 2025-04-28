@@ -20,7 +20,6 @@ const ScheduleMeetPage = () => {
   const [lawyers, setLawyers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [userData, setUserData] = useState(null);
   
   // Configure axios with credentials
   const axiosInstance = axios.create({
@@ -40,20 +39,19 @@ const ScheduleMeetPage = () => {
     '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
   ];
 
-  // Fetch user data from /find-user
+  // Fetch user data from /find-user on component mount
   useEffect(() => {
     const fetchUserData = async () => {
       try {
         const response = await axios.get('http://localhost:3000/find-user', { withCredentials: true });
-        setUserData(response.data);
-
+        
         if (response.data) {
           setFormData(prevData => ({
             ...prevData,
             firstName: response.data.firstName || '',
             lastName: response.data.lastName || '',
             email: response.data.email || '',
-            phone: response.data.phone || '',
+            phone: response.data.phone || ''
           }));
         }
       } catch (err) {
@@ -64,7 +62,7 @@ const ScheduleMeetPage = () => {
     fetchUserData();
   }, []);
 
-  // Fetch lawyers from /user and filter by role
+  // Fetch lawyers from /users and filter by role
   useEffect(() => {
     const fetchLawyers = async () => {
       try {
@@ -105,21 +103,18 @@ const ScheduleMeetPage = () => {
     setIsSubmitting(true);
     
     try {
-      // You can replace this with actual API call to save the booking
-      // const response = await axiosInstance.post('/bookings', {
-      //   lawyerId: selectedLawyer,
-      //   date: selectedDate,
-      //   time: selectedTime,
-      //   ...formData
-      // });
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
+      // Actual API call would be implemented here
+      await axiosInstance.post('http://localhost:3000/bookings', {
+        lawyerId: selectedLawyer,
+        date: selectedDate,
+        time: selectedTime,
+        ...formData
+      });
       
       setBookingComplete(true);
     } catch (err) {
       console.error('Error submitting booking:', err);
-      // Handle booking error - perhaps show an error message
+      // You could add error state handling here
     } finally {
       setIsSubmitting(false);
     }
@@ -133,6 +128,8 @@ const ScheduleMeetPage = () => {
   const getSelectedLawyerInfo = () => {
     return lawyers.find(lawyer => lawyer.id === selectedLawyer);
   };
+
+  console.log("Selected lawyer:", selectedLawyer); // Debug log to check selected lawyer state
   
   return (
     <div className="pt-16">
@@ -242,7 +239,7 @@ const ScheduleMeetPage = () => {
                             <div className="flex items-center">
                               <img 
                                 src={lawyer.imageUrl || '/api/placeholder/64/64'} 
-                                alt={lawyer.name} 
+                                alt={lawyer.name || `${lawyer.firstName} ${lawyer.lastName}`} 
                                 className="w-16 h-16 rounded-full object-cover mr-4"
                               />
                               <div>
@@ -257,9 +254,9 @@ const ScheduleMeetPage = () => {
                     
                     <div className="flex justify-end">
                       <button 
-                        className="btn btn-primary"
+                        className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                         onClick={handleNextStep}
-                        disabled={!selectedLawyer || lawyers.length === 0}
+                        disabled={selectedLawyer === null}
                       >
                         Continue <ArrowRight className="ml-2 h-4 w-4" />
                       </button>
@@ -326,13 +323,13 @@ const ScheduleMeetPage = () => {
                     
                     <div className="flex justify-between">
                       <button 
-                        className="btn btn-outline"
+                        className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={handlePrevStep}
                       >
                         Back
                       </button>
                       <button 
-                        className="btn btn-primary"
+                        className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                         onClick={handleNextStep}
                         disabled={!selectedDate || !selectedTime}
                       >
@@ -347,34 +344,34 @@ const ScheduleMeetPage = () => {
                   <div className="animate-fade-in">
                     <h2 className="font-serif text-2xl font-bold mb-6">Your Details</h2>
                     <p className="text-gray-600 mb-6">
-                      Please provide your contact information and brief details about your case
+                      Please confirm your contact information and provide brief details about your case
                     </p>
                     
                     <form className="mb-8">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div className="form-group">
-                          <label htmlFor="firstName" className="form-label">
+                          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
                             First Name
                           </label>
                           <input
                             type="text"
                             id="firstName"
                             name="firstName"
-                            className="form-input"
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                             value={formData.firstName}
                             onChange={handleInputChange}
                             required
                           />
                         </div>
                         <div className="form-group">
-                          <label htmlFor="lastName" className="form-label">
+                          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
                             Last Name
                           </label>
                           <input
                             type="text"
                             id="lastName"
                             name="lastName"
-                            className="form-input"
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                             value={formData.lastName}
                             onChange={handleInputChange}
                             required
@@ -384,28 +381,28 @@ const ScheduleMeetPage = () => {
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div className="form-group">
-                          <label htmlFor="email" className="form-label">
+                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                             Email Address
                           </label>
                           <input
                             type="email"
                             id="email"
                             name="email"
-                            className="form-input"
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                             value={formData.email}
                             onChange={handleInputChange}
                             required
                           />
                         </div>
                         <div className="form-group">
-                          <label htmlFor="phone" className="form-label">
+                          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
                             Phone Number
                           </label>
                           <input
                             type="tel"
                             id="phone"
                             name="phone"
-                            className="form-input"
+                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                             value={formData.phone}
                             onChange={handleInputChange}
                             required
@@ -414,14 +411,14 @@ const ScheduleMeetPage = () => {
                       </div>
                       
                       <div className="form-group">
-                        <label htmlFor="caseDetails" className="form-label">
+                        <label htmlFor="caseDetails" className="block text-sm font-medium text-gray-700 mb-1">
                           Brief Description of Your Case
                         </label>
                         <textarea
                           id="caseDetails"
                           name="caseDetails"
                           rows={4}
-                          className="form-input"
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
                           value={formData.caseDetails}
                           onChange={handleInputChange}
                           placeholder="Please provide a brief summary of your legal matter to help the attorney prepare for your consultation."
@@ -432,13 +429,13 @@ const ScheduleMeetPage = () => {
                     
                     <div className="flex justify-between">
                       <button 
-                        className="btn btn-outline"
+                        className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={handlePrevStep}
                       >
                         Back
                       </button>
                       <button 
-                        className="btn btn-primary"
+                        className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                         onClick={handleNextStep}
                         disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.phone}
                       >
@@ -530,13 +527,13 @@ const ScheduleMeetPage = () => {
                     
                     <div className="flex justify-between">
                       <button 
-                        className="btn btn-outline"
+                        className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={handlePrevStep}
                       >
                         Back
                       </button>
                       <button 
-                        className={`btn btn-primary ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
+                        className={`btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                         onClick={handleSubmit}
                         disabled={isSubmitting}
                       >
@@ -592,10 +589,10 @@ const ScheduleMeetPage = () => {
                   We've sent a confirmation email to <strong>{formData.email}</strong> with all the details.
                 </p>
                 <div className="flex flex-col sm:flex-row items-center justify-center space-y-4 sm:space-y-0 sm:space-x-4">
-                  <a className="btn btn-primary" href="/">
+                  <a className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors" href="/">
                     Return to Homepage
                   </a>
-                  <a className="btn btn-outline" href="/legal-book">
+                  <a className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors" href="/legal-resources">
                     Browse Legal Resources
                   </a>
                 </div>

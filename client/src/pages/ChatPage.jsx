@@ -1,5 +1,6 @@
 import React, { useEffect, useState, useRef } from "react";
 import axios from "axios";
+import Navbar from "../components/Navbar";
 
 const ChatPage = () => {
   const [users, setUsers] = useState([]);
@@ -186,6 +187,7 @@ const ChatPage = () => {
   }
 
   return (
+  
     <div className="flex h-screen bg-gray-50 font-sans mt-20" style={{marginTop: '80px'}}> 
       {/* Mobile sidebar toggle */}
       <div className="lg:hidden fixed bottom-4 right-4 z-50">
