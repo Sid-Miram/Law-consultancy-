@@ -21,7 +21,7 @@ const LoginPage = () => {
     // Check if we have a token in cookies
     const checkAuth = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/auth/check', {
+        const response = await axios.get('https://law-consultancy-2.onrender.com/auth/check', {
           withCredentials: true
         });
         if (response.data.authenticated) {
@@ -39,7 +39,7 @@ const LoginPage = () => {
 
   const handleGoogleAuth = () => {
     // Redirect to backend Google OAuth endpoint
-    window.location.href = 'http://localhost:3000/auth/google';
+    window.location.href = 'https://law-consultancy-2.onrender.com/auth/google';
   };
 
   return (
