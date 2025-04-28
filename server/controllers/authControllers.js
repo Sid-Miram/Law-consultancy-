@@ -154,9 +154,43 @@ createCalendarEvent: async (req, res) => {
   }
 },
 
-  // Find Current User (from token)
 
-  // Get All Users (except current user)
+  getUserMeetings: async (req, res) => {
+  const authToken = req.cookies.token; // or from headers (Authorization)
+
+  if (!authToken) {
+    return res.status(403).json({ error: "Authentication required" });
+  }
+
+  try {
+    const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+    const userId = decoded.userId;
+
+    const meetings = await Meeting.find({ attendees: userId })
+      .populate("attendees", "name email")
+      .sort({ startTime: 1 });
+
+    const formattedMeetings = meetings.map(meeting => ({
+      title: meeting.title,
+      description: meeting.description,
+      startTime: meeting.startTime,
+      endTime: meeting.endTime,
+      meetLink: meeting.meetLink,
+      status: meeting.status,
+      attendees: meeting.attendees.map(attendee => ({
+        name: attendee.name,
+        email: attendee.email,
+      })),
+    }));
+
+    return res.status(200).json(formattedMeetings);
+  } catch (error) {
+    console.error("Error fetching user meetings:", error);
+    return res.status(500).json({ error: "Failed to fetch user meetings" });
+  }
+},
+
+ // Get All Users (except current user)
   getAllUsers: async (req, res) => {
     try {
       const users = await User.find(
