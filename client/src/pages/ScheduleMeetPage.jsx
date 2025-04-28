@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Calendar, Clock, User, Briefcase, Calendar as CalendarIcon, ArrowRight, Check } from 'lucide-react';
 import { format } from 'date-fns';
@@ -13,7 +12,6 @@ const ScheduleMeetPage = () => {
     firstName: '',
     lastName: '',
     email: '',
-    phone: '',
     caseDetails: ''
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -21,22 +19,23 @@ const ScheduleMeetPage = () => {
   const [lawyers, setLawyers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  
+  const [calendarEventInfo, setCalendarEventInfo] = useState(null);
+
   // Configure axios with credentials
   const axiosInstance = axios.create({
     withCredentials: true
   });
-  
+
   // Sample available dates (next 7 days)
   const availableDates = Array.from({ length: 7 }, (_, i) => {
     const date = new Date();
     date.setDate(date.getDate() + i + 1);
     return format(date, 'yyyy-MM-dd');
   });
-  
+
   // Sample available time slots
   const availableTimeSlots = [
-    '09:00 AM', '10:00 AM', '11:00 AM', 
+    '09:00 AM', '10:00 AM', '11:00 AM',
     '01:00 PM', '02:00 PM', '03:00 PM', '04:00 PM'
   ];
 
@@ -45,14 +44,12 @@ const ScheduleMeetPage = () => {
     const fetchUserData = async () => {
       try {
         const response = await axios.get('http://localhost:3000/find-user', { withCredentials: true });
-        
+
         if (response.data) {
           setFormData(prevData => ({
             ...prevData,
-            firstName: response.data.firstName || '',
-            lastName: response.data.lastName || '',
-            email: response.data.email || '',
-            phone: response.data.phone || ''
+            name: response.data.name || '',
+            email: response.data.email || ''
           }));
         }
       } catch (err) {
@@ -69,7 +66,7 @@ const ScheduleMeetPage = () => {
       try {
         setLoading(true);
         const response = await axios.get('http://localhost:3000/users', { withCredentials: true });
-        
+
         const lawyerUsers = response.data.filter(user => user.role === 'lawyer');
         setLawyers(lawyerUsers);
       } catch (err) {
@@ -82,7 +79,7 @@ const ScheduleMeetPage = () => {
 
     fetchLawyers();
   }, []);
-  
+
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData({
@@ -90,48 +87,96 @@ const ScheduleMeetPage = () => {
       [name]: value
     });
   };
-  
+
   const handleNextStep = () => {
     setCurrentStep(currentStep + 1);
   };
-  
+
   const handlePrevStep = () => {
     setCurrentStep(currentStep - 1);
   };
-  
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setIsSubmitting(true);
-    
-    try {
-      // Actual API call would be implemented here
-      await axiosInstance.post('http://localhost:3000/bookings', {
-        lawyerId: selectedLawyer,
-        date: selectedDate,
-        time: selectedTime,
-        ...formData
-      });
-      
-      setBookingComplete(true);
-    } catch (err) {
-      console.error('Error submitting booking:', err);
-      // You could add error state handling here
-    } finally {
-      setIsSubmitting(false);
+// Convert time string to ISO format with IST adjustment
+const convertToISODateTime = (dateStr, timeStr) => {
+  const date = new Date(dateStr);
+  const timeParts = timeStr.match(/(\d+):(\d+) (AM|PM)/);
+
+  if (!timeParts) return null;
+
+  let hours = parseInt(timeParts[1]);
+  const minutes = parseInt(timeParts[2]);
+  const period = timeParts[3];
+
+  // Convert to 24-hour format
+  if (period === 'PM' && hours < 12) hours += 12;
+  if (period === 'AM' && hours === 12) hours = 0;
+
+
+  date.setHours(hours, minutes, 0, 0);
+
+  // Manually add 5 hours 30 minutes for IST
+  date.setMinutes(date.getMinutes() + 330 );
+
+  // Get the new ISO string
+  return date.toISOString();
+};
+const handleSubmit = async (e) => {
+  e.preventDefault();
+  setIsSubmitting(true);
+
+  try {
+    const selectedLawyerInfo = getSelectedLawyerInfo();
+    if (!selectedLawyerInfo) {
+      throw new Error('Selected lawyer not found');
     }
-  };
-  
+
+    // Ensure we have the lawyer's email
+    const lawyerEmail = selectedLawyerInfo.email;
+    if (!lawyerEmail) {
+      throw new Error('Lawyer email not available');
+    }
+
+    // Calculate event start and end times
+    const startTime = convertToISODateTime(selectedDate, selectedTime);
+
+    // Set end time to be 1 hour after start time
+    const endDateTime = new Date(startTime);
+    endDateTime.setHours(endDateTime.getHours() + 1);
+    const endTime = endDateTime.toISOString();
+
+    // Create meeting details with both emails
+    const meetingData = {
+      title: `Legal Consultation with ${selectedLawyerInfo.name || `${selectedLawyerInfo.firstName} ${selectedLawyerInfo.lastName}`}`,
+      description: `Case Details: ${formData.caseDetails || 'No details provided'}`,
+      startTime: startTime,
+      endTime: endTime,
+      attendees: [formData.email, lawyerEmail], // Include both user and lawyer emails
+      lawyerId: selectedLawyerInfo.id // Pass the lawyer ID to backend
+    };
+
+    // Send request to create calendar event
+    const response = await axios.post('http://localhost:3000/consultation', meetingData, {
+      withCredentials: true
+    });
+
+    setCalendarEventInfo(response.data);
+    setBookingComplete(true);
+  } catch (err) {
+    console.error('Error submitting booking:', err);
+    setError(err.message || 'Failed to book consultation');
+  } finally {
+    setIsSubmitting(false);
+  }
+};
+
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return format(date, 'EEEE, MMMM d, yyyy');
   };
-  
+
   const getSelectedLawyerInfo = () => {
     return lawyers.find(lawyer => lawyer.id === selectedLawyer);
   };
 
-  console.log("Selected lawyer:", selectedLawyer); // Debug log to check selected lawyer state
-  
   return (
     <div className="pt-16">
       {/* Header */}
@@ -144,7 +189,7 @@ const ScheduleMeetPage = () => {
           </p>
         </div>
       </section>
-      
+
       {/* Booking Section */}
       <section className="py-12 md:py-16 bg-white">
         <div className="container mx-auto px-4 md:px-6">
@@ -168,27 +213,25 @@ const ScheduleMeetPage = () => {
                   <div className="flex items-center justify-center">
                     {[1, 2, 3, 4].map((step) => (
                       <React.Fragment key={step}>
-                        <div className={`relative flex items-center justify-center w-10 h-10 rounded-full border-2 ${
-                          currentStep >= step 
-                            ? 'bg-primary-600 border-primary-600 text-white' 
+                        <div className={`relative flex items-center justify-center w-10 h-10 rounded-full border-2 ${currentStep >= step
+                            ? 'bg-primary-600 border-primary-600 text-white'
                             : 'bg-white border-gray-300 text-gray-400'
-                        }`}>
+                          }`}>
                           {currentStep > step ? (
                             <Check className="h-5 w-5" />
                           ) : (
                             <span className="text-sm font-medium">{step}</span>
                           )}
                         </div>
-                        
+
                         {step < 4 && (
-                          <div className={`w-20 h-1 ${
-                            currentStep > step ? 'bg-primary-600' : 'bg-gray-300'
-                          }`}></div>
+                          <div className={`w-20 h-1 ${currentStep > step ? 'bg-primary-600' : 'bg-gray-300'
+                            }`}></div>
                         )}
                       </React.Fragment>
                     ))}
                   </div>
-                  
+
                   <div className="flex justify-between mt-2 px-6">
                     <div className="text-center w-20">
                       <span className={`text-sm ${currentStep >= 1 ? 'text-primary-600 font-medium' : 'text-gray-500'}`}>
@@ -212,7 +255,7 @@ const ScheduleMeetPage = () => {
                     </div>
                   </div>
                 </div>
-                
+
                 {/* Step 1: Select Lawyer */}
                 {currentStep === 1 && (
                   <div className="animate-fade-in">
@@ -220,7 +263,7 @@ const ScheduleMeetPage = () => {
                     <p className="text-gray-600 mb-6">
                       Choose a lawyer who specializes in your legal matter
                     </p>
-                    
+
                     {lawyers.length === 0 ? (
                       <div className="text-center py-8 bg-gray-50 rounded-lg">
                         <p className="text-gray-600">No attorneys are currently available.</p>
@@ -228,19 +271,18 @@ const ScheduleMeetPage = () => {
                     ) : (
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
                         {lawyers.map((lawyer) => (
-                          <div 
+                          <div
                             key={lawyer.id}
-                            className={`card cursor-pointer transition-all p-4 rounded-lg ${
-                              selectedLawyer === lawyer.id 
-                                ? 'border-2 border-primary-500 shadow-md' 
+                            className={`card cursor-pointer transition-all p-4 rounded-lg ${selectedLawyer === lawyer.id
+                                ? 'border-2 border-primary-500 shadow-md'
                                 : 'hover:shadow-md border border-gray-100'
-                            }`}
+                              }`}
                             onClick={() => setSelectedLawyer(lawyer.id)}
                           >
                             <div className="flex items-center">
-                              <img 
-                                src={lawyer.imageUrl || '/api/placeholder/64/64'} 
-                                alt={lawyer.name || `${lawyer.firstName} ${lawyer.lastName}`} 
+                              <img
+                                src={lawyer.imageUrl || '/api/placeholder/64/64'}
+                                alt={lawyer.name}
                                 className="w-16 h-16 rounded-full object-cover mr-4"
                               />
                               <div>
@@ -252,9 +294,9 @@ const ScheduleMeetPage = () => {
                         ))}
                       </div>
                     )}
-                    
+
                     <div className="flex justify-end">
-                      <button 
+                      <button
                         className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                         onClick={handleNextStep}
                         disabled={selectedLawyer === null}
@@ -264,7 +306,7 @@ const ScheduleMeetPage = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Step 2: Choose Date & Time */}
                 {currentStep === 2 && (
                   <div className="animate-fade-in">
@@ -272,7 +314,7 @@ const ScheduleMeetPage = () => {
                     <p className="text-gray-600 mb-6">
                       Choose a convenient date and time for your virtual consultation
                     </p>
-                    
+
                     <div className="mb-8">
                       <h3 className="font-medium text-gray-800 mb-3 flex items-center">
                         <CalendarIcon className="h-5 w-5 mr-2 text-primary-600" />
@@ -282,11 +324,10 @@ const ScheduleMeetPage = () => {
                         {availableDates.map((date) => (
                           <button
                             key={date}
-                            className={`p-3 border rounded-md text-center transition-all ${
-                              selectedDate === date
+                            className={`p-3 border rounded-md text-center transition-all ${selectedDate === date
                                 ? 'bg-primary-100 border-primary-500 text-primary-700'
                                 : 'border-gray-300 hover:border-primary-300 hover:bg-gray-50'
-                            }`}
+                              }`}
                             onClick={() => setSelectedDate(date)}
                           >
                             {format(new Date(date), 'MMM d')}
@@ -296,7 +337,7 @@ const ScheduleMeetPage = () => {
                           </button>
                         ))}
                       </div>
-                      
+
                       {selectedDate && (
                         <>
                           <h3 className="font-medium text-gray-800 mb-3 flex items-center">
@@ -307,11 +348,10 @@ const ScheduleMeetPage = () => {
                             {availableTimeSlots.map((time) => (
                               <button
                                 key={time}
-                                className={`p-3 border rounded-md text-center transition-all ${
-                                  selectedTime === time
+                                className={`p-3 border rounded-md text-center transition-all ${selectedTime === time
                                     ? 'bg-primary-100 border-primary-500 text-primary-700'
                                     : 'border-gray-300 hover:border-primary-300 hover:bg-gray-50'
-                                }`}
+                                  }`}
                                 onClick={() => setSelectedTime(time)}
                               >
                                 {time}
@@ -321,15 +361,15 @@ const ScheduleMeetPage = () => {
                         </>
                       )}
                     </div>
-                    
+
                     <div className="flex justify-between">
-                      <button 
+                      <button
                         className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={handlePrevStep}
                       >
                         Back
                       </button>
-                      <button 
+                      <button
                         className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                         onClick={handleNextStep}
                         disabled={!selectedDate || !selectedTime}
@@ -339,78 +379,50 @@ const ScheduleMeetPage = () => {
                     </div>
                   </div>
                 )}
-                
+
                 {/* Step 3: Your Details */}
                 {currentStep === 3 && (
                   <div className="animate-fade-in">
                     <h2 className="font-serif text-2xl font-bold mb-6">Your Details</h2>
                     <p className="text-gray-600 mb-6">
-                      Please confirm your contact information and provide brief details about your case
+                      Please confirm your information and provide brief details about your case
                     </p>
-                    
+
                     <form className="mb-8">
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
                         <div className="form-group">
-                          <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">
-                            First Name
+                          <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">
+                            Name
                           </label>
                           <input
                             type="text"
-                            id="firstName"
-                            name="firstName"
+                            id="name"
+                            name="name"
                             className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            value={formData.firstName}
+                            value={formData.name}
                             onChange={handleInputChange}
                             required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">
-                            Last Name
-                          </label>
-                          <input
-                            type="text"
-                            id="lastName"
-                            name="lastName"
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            value={formData.lastName}
-                            onChange={handleInputChange}
-                            required
+                            readOnly
                           />
                         </div>
                       </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
-                        <div className="form-group">
-                          <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
-                            Email Address
-                          </label>
-                          <input
-                            type="email"
-                            id="email"
-                            name="email"
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            value={formData.email}
-                            onChange={handleInputChange}
-                            required
-                          />
-                        </div>
-                        <div className="form-group">
-                          <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">
-                            Phone Number
-                          </label>
-                          <input
-                            type="tel"
-                            id="phone"
-                            name="phone"
-                            className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
-                            value={formData.phone}
-                            onChange={handleInputChange}
-                            required
-                          />
-                        </div>
+
+                      <div className="form-group mb-4">
+                        <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
+                          Email Address
+                        </label>
+                        <input
+                          type="email"
+                          id="email"
+                          name="email"
+                          className="w-full p-2 border border-gray-300 rounded-md focus:ring-primary-500 focus:border-primary-500"
+                          value={formData.email}
+                          onChange={handleInputChange}
+                          required
+                          readOnly
+                        />
                       </div>
-                      
+
                       <div className="form-group">
                         <label htmlFor="caseDetails" className="block text-sm font-medium text-gray-700 mb-1">
                           Brief Description of Your Case
@@ -427,25 +439,25 @@ const ScheduleMeetPage = () => {
                         ></textarea>
                       </div>
                     </form>
-                    
+
                     <div className="flex justify-between">
-                      <button 
+                      <button
                         className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={handlePrevStep}
                       >
                         Back
                       </button>
-                      <button 
+                      <button
                         className="btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
                         onClick={handleNextStep}
-                        disabled={!formData.firstName || !formData.lastName || !formData.email || !formData.phone}
+                        disabled={!formData.name || !formData.email}
                       >
                         Review Booking <ArrowRight className="ml-2 h-4 w-4" />
                       </button>
                     </div>
                   </div>
                 )}
-                
+
                 {/* Step 4: Confirmation */}
                 {currentStep === 4 && (
                   <div className="animate-fade-in">
@@ -453,12 +465,12 @@ const ScheduleMeetPage = () => {
                     <p className="text-gray-600 mb-6">
                       Please review your booking details before confirming your consultation
                     </p>
-                    
+
                     <div className="bg-gray-50 rounded-lg p-6 mb-8">
                       <div className="flex items-center mb-6 pb-4 border-b border-gray-200">
-                        <img 
-                          src={getSelectedLawyerInfo()?.imageUrl || '/api/placeholder/64/64'} 
-                          alt={getSelectedLawyerInfo()?.name || `${getSelectedLawyerInfo()?.firstName} ${getSelectedLawyerInfo()?.lastName}`} 
+                        <img
+                          src={getSelectedLawyerInfo()?.imageUrl || '/api/placeholder/64/64'}
+                          alt={getSelectedLawyerInfo()?.name || `${getSelectedLawyerInfo()?.firstName} ${getSelectedLawyerInfo()?.lastName}`}
                           className="w-16 h-16 rounded-full object-cover mr-4"
                         />
                         <div>
@@ -470,7 +482,7 @@ const ScheduleMeetPage = () => {
                           </p>
                         </div>
                       </div>
-                      
+
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                         <div>
                           <h4 className="font-medium text-gray-700 mb-2 flex items-center">
@@ -483,20 +495,19 @@ const ScheduleMeetPage = () => {
                             <li><strong>Format:</strong> Google Meet (link will be sent via email)</li>
                           </ul>
                         </div>
-                        
+
                         <div>
                           <h4 className="font-medium text-gray-700 mb-2 flex items-center">
                             <User className="h-5 w-5 mr-2 text-primary-600" />
                             Your Information
                           </h4>
                           <ul className="space-y-2 text-gray-600">
-                            <li><strong>Name:</strong> {formData.firstName} {formData.lastName}</li>
+                            <li><strong>Name:</strong> {formData.name}</li>
                             <li><strong>Email:</strong> {formData.email}</li>
-                            <li><strong>Phone:</strong> {formData.phone}</li>
                           </ul>
                         </div>
                       </div>
-                      
+
                       {formData.caseDetails && (
                         <div className="mt-6 pt-4 border-t border-gray-200">
                           <h4 className="font-medium text-gray-700 mb-2 flex items-center">
@@ -507,7 +518,7 @@ const ScheduleMeetPage = () => {
                         </div>
                       )}
                     </div>
-                    
+
                     <div className="mb-8">
                       <h4 className="font-medium text-gray-800 mb-2">What happens next?</h4>
                       <ul className="space-y-2 text-gray-600">
@@ -525,15 +536,15 @@ const ScheduleMeetPage = () => {
                         </li>
                       </ul>
                     </div>
-                    
+
                     <div className="flex justify-between">
-                      <button 
+                      <button
                         className="btn border border-gray-300 px-6 py-2 rounded-lg hover:bg-gray-50 transition-colors"
                         onClick={handlePrevStep}
                       >
                         Back
                       </button>
-                      <button 
+                      <button
                         className={`btn bg-primary-600 text-white px-6 py-2 rounded-lg hover:bg-primary-700 transition-colors ${isSubmitting ? 'opacity-70 cursor-not-allowed' : ''}`}
                         onClick={handleSubmit}
                         disabled={isSubmitting}
@@ -584,6 +595,13 @@ const ScheduleMeetPage = () => {
                         <strong>Time:</strong> {selectedTime}
                       </span>
                     </li>
+                    {calendarEventInfo?.eventLink && (
+                      <li className="flex">
+                        <a href={calendarEventInfo.eventLink} target="_blank" rel="noopener noreferrer" className="text-primary-600 hover:underline">
+                          View in Calendar
+                        </a>
+                      </li>
+                    )}
                   </ul>
                 </div>
                 <p className="text-gray-600 mb-6">
@@ -605,6 +623,5 @@ const ScheduleMeetPage = () => {
     </div>
   );
 };
-
 
 export default ScheduleMeetPage;

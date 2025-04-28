@@ -107,7 +107,7 @@ const Navbar = () => {
 
   const renderUserMenuItems = () => (
     <>
-      <div onClick={() => navigate(user?.role === 'lawyer' ? '/lawyer/profile' : '/profile')} 
+      <div onClick={() => navigate('/profile')} 
            className="flex items-center px-4 py-3 hover:bg-blue-800 text-white rounded-lg cursor-pointer transition-colors">
         <User className="h-4 w-4 mr-2 text-blue-300" />
         <span>Profile</span>
@@ -320,7 +320,7 @@ const Navbar = () => {
               {user && (
                 <>
                   <Link
-                    to={user?.role === 'lawyer' ? '/lawyer/profile' : '/profile'}
+                    to={'/profile'}
                     className="block px-5 py-3 text-sm font-medium transition-colors rounded-lg mx-2 text-blue-50 hover:bg-blue-800 hover:text-white"
                   >
                     <div className="flex items-center">
