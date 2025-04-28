@@ -44,7 +44,7 @@ const ScheduleMeetPage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/find-user', { withCredentials: true });
+        const response = await axios.get('https://law-consultancy-2.onrender.com/find-user', { withCredentials: true });
 
         if (response.data) {
           setFormData(prevData => ({
@@ -66,7 +66,7 @@ const ScheduleMeetPage = () => {
     const fetchLawyers = async () => {
       try {
         setLoading(true);
-        const response = await axios.get('http://localhost:3000/users', { withCredentials: true });
+        const response = await axios.get('https://law-consultancy-2.onrender.com/users', { withCredentials: true });
 
         const lawyerUsers = response.data.filter(user => user.role === 'lawyer');
         setLawyers(lawyerUsers);
@@ -156,7 +156,7 @@ const ScheduleMeetPage = () => {
       };
 
       // Send request to create calendar event
-      const response = await axios.post('http://localhost:3000/consultation', meetingData, {
+      const response = await axios.post('https://law-consultancy-2.onrender.com/consultation', meetingData, {
         withCredentials: true
       });
 
