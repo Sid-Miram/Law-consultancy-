@@ -19,7 +19,7 @@ const Navbar = () => {
   useEffect(() => {
     const fetchUserInfo = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/find-user', {
+        const response = await axios.get('https://law-consultancy-2.onrender.com/find-user', {
           withCredentials: true,
           headers: {
             'Content-Type': 'application/json',
@@ -89,7 +89,7 @@ const Navbar = () => {
 
   const handleLogout = async () => {
     try {
-      await axios.post('http://localhost:3000/logout', {}, {
+      await axios.post('https://law-consultancy-2.onrender.com/logout', {}, {
         withCredentials: true
       });
       setUser(null);
