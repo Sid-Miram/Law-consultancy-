@@ -41,6 +41,10 @@ const meetingSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  eventId: {
+    type: String,
+    required: true,
+},
 });
 
 const Meeting = mongoose.model("Meeting", meetingSchema);

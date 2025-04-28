@@ -15,6 +15,74 @@ const authControllers = {
     res.status(200).json({ message: "Server is running" });
   },
 
+cancelMeeting: async (req, res) => {
+  const authToken = req.cookies.token;
+
+  if (!authToken) {
+    return res.status(403).json({ error: "Authentication required" });
+  }
+
+  const { meetingId } = req.params;
+
+  if (!meetingId) {
+    return res.status(400).json({ error: "Meeting ID required" });
+  }
+
+  try {
+    const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+    const { userId } = decoded;
+
+    // 1. Find meeting
+    const meeting = await Meeting.findById(meetingId);
+
+    if (!meeting) {
+      return res.status(404).json({ error: "Meeting not found" });
+    }
+
+    // 2. Find user (who created it)
+    const user = await User.findById(userId);
+
+    if (!user || !user.googleCalendarToken) {
+      return res.status(401).json({ error: "Google access token not available" });
+    }
+
+    // 3. Setup Google OAuth
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarToken,
+    });
+
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+
+    // 4. Extract Google Event ID from meeting link
+    // Meet Link looks like: https://meet.google.com/lookup/abcd1234 
+    // OR eventLink like: https://calendar.google.com/calendar/event?eid=XXXXXXXXXXXXXXXXXX
+    const eventId = meeting.eventId; // ✅ You need to SAVE eventId when creating the meeting!
+
+    if (!eventId) {
+      return res.status(400).json({ error: "No Google Calendar Event ID linked to this meeting" });
+    }
+
+    // 5. Delete event from Google Calendar
+    await calendar.events.delete({
+      calendarId: "primary",
+      eventId: eventId,
+    });
+
+    // 6. Update meeting status
+    meeting.status = "cancelled";
+    await meeting.save();
+
+    return res.status(200).json({
+      message: "Meeting cancelled successfully",
+    });
+
+  } catch (error) {
+    console.error("Error cancelling meeting:", error);
+    return res.status(500).json({ error: "Failed to cancel meeting" });
+  }
+},
+
   // Google OAuth Redirect
   googleLoginRedirect: async (req, res) => {
     try {
@@ -138,6 +206,7 @@ createCalendarEvent: async (req, res) => {
       endTime,
       attendees: attendeeUsers.map((u) => u._id), // Save user IDs
       meetLink: response.data.hangoutLink || response.data.htmlLink, // Use meet link
+      eventId: response.data.id,
       status: "scheduled",
     });
 
