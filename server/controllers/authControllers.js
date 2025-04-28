@@ -130,6 +130,8 @@ createCalendarEvent: async (req, res) => {
 
     // 🔥 NEW: Save meeting into MongoDB
     const attendeeUsers = await User.find({ email: { $in: attendees } });
+    console.log(startTime);
+    
 
     const meeting = new Meeting({
       title,
