@@ -11,7 +11,7 @@ const ProfilePage = () => {
   useEffect(() => {
     const fetchUserData = async () => {
       try {
-        const response = await axios.get('http://localhost:3000/find-user', {
+        const response = await axios.get('https://law-consultancy-2.onrender.com/find-user', {
           withCredentials: true
         });
         setUser(response.data);
