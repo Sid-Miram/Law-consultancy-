@@ -60,7 +60,7 @@ const HomePage = () => {
   ];
 
   return (
-    <div>
+    <div style={{marginTop:'70px'}}>
       {/* Hero Section */}
       <Hero 
         title="Expert Legal Advice at Your Fingertips"
