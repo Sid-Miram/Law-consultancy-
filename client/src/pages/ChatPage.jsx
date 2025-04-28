@@ -19,7 +19,7 @@ const ChatPage = () => {
     const fetchCurrentUser = async () => {
       try {
         setIsLoading(true);
-        const res = await axios.get("http://localhost:3000/find-user", {
+        const res = await axios.get("https://law-consultancy-2.onrender.com/find-user", {
           withCredentials: true,
         });
         setCurrentUser(res.data);
@@ -36,7 +36,7 @@ const ChatPage = () => {
   useEffect(() => {
     const fetchUsers = async () => {
       try {
-        const res = await axios.get("http://localhost:3000/users", {
+        const res = await axios.get("https://law-consultancy-2.onrender.com/users", {
           withCredentials: true,
         });
         
@@ -80,7 +80,7 @@ const ChatPage = () => {
         try {
           setIsLoading(true);
           const res = await axios.get(
-            `http://localhost:3000/chat/${selectedUser._id}?senderId=${currentUser._id}`
+            `https://law-consultancy-2.onrender.com/chat/${selectedUser._id}?senderId=${currentUser._id}`
           );
           setMessages(res.data);
           setIsLoading(false);
@@ -106,7 +106,7 @@ const ChatPage = () => {
     if (!newMessage.trim()) return;
     
     try {
-      await axios.post(`http://localhost:3000/chat/send/${selectedUser._id}`, {
+      await axios.post(`https://law-consultancy-2.onrender.com/chat/send/${selectedUser._id}`, {
         message: newMessage,
         senderId: currentUser._id,
       });
