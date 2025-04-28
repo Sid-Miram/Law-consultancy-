@@ -29,7 +29,9 @@ const userSchema = new mongoose.Schema({
     type: String,
     trim: true,
   },
-
+  meetLink: {
+    type: Array,
+  },
   // Lawyer specific fields
   specialization: {
     type: String,

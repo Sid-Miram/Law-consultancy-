@@ -1,5 +1,6 @@
 "use strict";
 
+const Meeting = require("../models/Meeting"); // Import the Meeting model at top
 const jwt = require("jsonwebtoken");
 const User = require("../models/User.js");
 const {
@@ -73,70 +74,85 @@ const authControllers = {
   },
 
   // Create Calendar Event (optional, if you use Google Calendar)
-  createCalendarEvent: async (req, res) => {
-    const { title, description, startTime, endTime, attendees } = req.body;
 
-    const authToken = req.cookies.token;
 
-    if (!authToken) {
-      return res.status(403).json({ error: "Authentication required" });
+createCalendarEvent: async (req, res) => {
+  const { title, description, startTime, endTime, attendees } = req.body;
+
+  const authToken = req.cookies.token;
+
+  if (!authToken) {
+    return res.status(403).json({ error: "Authentication required" });
+  }
+
+  try {
+    const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
+    const { userId, role } = decoded;
+    console.log(decoded);
+
+    const user = await User.findById(userId);
+    console.log(user);
+
+    if (!user || !user.googleCalendarToken) {
+      return res
+        .status(401)
+        .json({ error: "Google access token not available" });
     }
 
-    try {
-      const decoded = jwt.verify(authToken, process.env.JWT_SECRET);
-      const { userId, role } = decoded;
-      console.log(decoded);
+    const oauth2Client = new google.auth.OAuth2();
+    oauth2Client.setCredentials({
+      access_token: user.googleCalendarToken,
+    });
 
-      // Fetch user from DB and get access_token
+    const calendar = google.calendar({ version: "v3", auth: oauth2Client });
 
-      const user = await User.findById(userId);
-      console.log(user);
+    const event = {
+      summary: title,
+      description,
+      start: {
+        dateTime: startTime,
+        timeZone: "UTC",
+      },
+      end: {
+        dateTime: endTime,
+        timeZone: "UTC",
+      },
+      attendees: attendees.map((email) => ({ email })),
+      reminders: {
+        useDefault: true,
+      },
+    };
 
-      if (!user || !user.googleCalendarToken) {
-        return res
-          .status(401)
-          .json({ error: "Google access token not available" });
-      }
+    const response = await calendar.events.insert({
+      calendarId: "primary",
+      resource: event,
+    });
 
-      const oauth2Client = new google.auth.OAuth2();
-      oauth2Client.setCredentials({
-        access_token: user.googleCalendarToken,
-      });
+    // 🔥 NEW: Save meeting into MongoDB
+    const attendeeUsers = await User.find({ email: { $in: attendees } });
 
-      const calendar = google.calendar({ version: "v3", auth: oauth2Client });
+    const meeting = new Meeting({
+      title,
+      description,
+      startTime,
+      endTime,
+      attendees: attendeeUsers.map((u) => u._id), // Save user IDs
+      meetLink: response.data.hangoutLink || response.data.htmlLink, // Use meet link
+      status: "scheduled",
+    });
 
-      const event = {
-        summary: title,
-        description,
-        start: {
-          dateTime: startTime,
-          timeZone: "UTC",
-        },
-        end: {
-          dateTime: endTime,
-          timeZone: "UTC",
-        },
-        attendees: attendees.map((email) => ({ email })),
-        reminders: {
-          useDefault: true,
-        },
-      };
+    await meeting.save();
 
-      const response = await calendar.events.insert({
-        calendarId: "primary",
-        resource: event,
-      });
-
-      return res.status(200).json({
-        message: "Consultation booked successfully",
-        eventId: response.data.id,
-        eventLink: response.data.htmlLink,
-      });
-    } catch (error) {
-      console.error("Error booking consultation:", error);
-      return res.status(500).json({ error: "Failed to book consultation" });
-    }
-  },
+    return res.status(200).json({
+      message: "Consultation booked successfully",
+      eventId: response.data.id,
+      eventLink: response.data.htmlLink,
+    });
+  } catch (error) {
+    console.error("Error booking consultation:", error);
+    return res.status(500).json({ error: "Failed to book consultation" });
+  }
+},
 
   // Find Current User (from token)
 
