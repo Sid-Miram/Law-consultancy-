@@ -1,7 +1,8 @@
 const io = require("socket.io-client");
+require("dotenv").config();
 
 // Connect to the socket server
-const socket = io("http://localhost:3000", {
+const socket = io(`${process.env.BASE_URL}`, {
   withCredentials: true,
 });
 
