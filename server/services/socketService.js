@@ -3,8 +3,9 @@ const http = require("http");
 const { Server } = require("socket.io");
 const app = express();
 const { userModel } = require("../models/User.js");
+require("dotenv").config();
 
-const allowedOrigins = ["http://localhost:4500", "http://localhost:3000"];
+const allowedOrigins = process.env.BASE_URL;
 
 const corsOptions = {
   origin: allowedOrigins,
