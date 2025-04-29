@@ -8,6 +8,7 @@ const {
   getGoogleOAuthToken,
 } = require("../services/googleOAuthServices.js");
 const { google } = require("googleapis");
+require("dotenv").config();
 
 const authControllers = {
   // Health Check
@@ -134,10 +135,10 @@ cancelMeeting: async (req, res) => {
       });
 
       // Redirect to frontend
-      res.redirect("https://law-consultancy-0.vercel.app/");
+      res.redirect(process.env.BASE_URL);
     } catch (error) {
       console.error("Error in googleLogin:", error);
-      res.redirect("https://law-consultancy-0.vercel.app/login?error=authentication_failed");
+      res.redirect(`${process.env.BASE_URL}/login?error=authentication_failed`);
     }
   },
 
